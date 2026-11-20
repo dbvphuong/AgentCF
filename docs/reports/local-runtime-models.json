@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-11-16",
+  "purpose": "Stage 1 reference inventory; not a live runtime configuration or an entitlement guarantee.",
+  "codex": {
+    "discovery": "app-server model/list with includeHidden=true; refresh and paginate on the target machine/account",
+    "observed_cli_version": "0.147.0",
+    "models": [
+      {"runtime_model_id": "gpt-5.6-sol", "display_name": "GPT-5.6-Sol", "hidden": false, "access": "skill_and_resume_verified"},
+      {"runtime_model_id": "gpt-5.6-terra", "display_name": "GPT-5.6-Terra", "hidden": false, "access": "not_verified"},
+      {"runtime_model_id": "gpt-5.6-luna", "display_name": "GPT-5.6-Luna", "hidden": false, "access": "not_verified"},
+      {"runtime_model_id": "gpt-reserve", "display_name": "GPT-Reserve", "hidden": true, "access": "not_verified"},
+      {"runtime_model_id": "codex-auto-review", "display_name": "Codex Auto Review", "hidden": true, "access": "not_verified"}
+    ]
+  },
+  "antigravity": {
+    "source": "All seven labels from the user-supplied screenshot; CLI TTY corroborated the three non-Gemini labels.",
+    "observed_cli_version": "1.0.6",
+    "runtime_id_policy": "Null means unresolved. Preserve all labels across account switches; resolve actual runtime IDs before execution; do not silently substitute models.",
+    "models": [
+      {"display_name": "Gemini 3.8 Flash High", "runtime_model_id": null, "ui_status": "selected_in_screenshot", "access": "not_verified"},
+      {"display_name": "Claude Sonnet 4.6 (Thinking)", "runtime_model_id": null, "ui_status": "notice_in_screenshot", "access": "skill_and_resume_verified_in_cmd_tty"},
+      {"display_name": "Claude Opus 4.6 (Thinking)", "runtime_model_id": null, "ui_status": "notice_in_screenshot", "access": "not_verified"},
+      {"display_name": "GPT-OSS 120B (Medium)", "runtime_model_id": null, "ui_status": "notice_in_screenshot", "access": "not_verified"},
+      {"display_name": "Gemini 4 Carbon", "runtime_model_id": null, "ui_status": "unavailable_in_screenshot", "access": "not_verified"},
+      {"display_name": "Gemini 4 Argon", "runtime_model_id": null, "ui_status": "unavailable_in_screenshot", "access": "not_verified"},
+      {"display_name": "Gemini 4 Hydrogen", "runtime_model_id": null, "ui_status": "unavailable_in_screenshot", "access": "not_verified"}
+    ]
+  }
+}

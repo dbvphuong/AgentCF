@@ -1,0 +1,16 @@
+# Xóa hẳn Project/Process và danh mục không còn được Process dùng
+
+[Module](README.md) · [Requirements](../../../product/requirements.md#quản-lý-project-và-process-qua-giao-diện) · [ADR 0008](../../../architecture/decisions/0008-explicit-aggregate-deletion.md)
+
+## PROJ-007
+
+- [x] **PROJ-007 — Xóa vĩnh viễn kể cả đã có lịch sử/published** — Xong | Behavior
+  - Thay quy tắc giữ lịch sử khi Delete tại PROJ-003/005/006; Ngừng hoạt động/Kích hoạt lại vẫn riêng. Người dùng xác nhận chặn khi có Run chưa kết thúc, yêu cầu dừng Run và đợi kết thúc, không tự hủy.
+  - Xóa nguyên tử Project/Process và toàn bộ định nghĩa/version/schedule/history/receipt/events/grants/review/human/usage/artifact metadata thuộc nó. Giữ audit thao tác xóa; giữ Project khác, Workspace/PC/catalog và file trên PC. Artifact upload Server được cleanup sau commit, có hàng đợi bền vững để retry khi file bị khóa/khởi động lại; không truy cập path ngoài root Server.
+  - Migration 018: giới hạn ngoại lệ DELETE theo connection/table/rowid của một câu lệnh; mọi UPDATE và DELETE trực tiếp vẫn chịu trigger bất biến. Không sửa migration cũ, không tắt FK, không drop trigger lúc chạy.
+  - Skill/Agent: scan node của mọi ProcessVersion draft/published, chặn 409 có tên Process nếu đang dùng. Khi không còn dùng, xóa Skill cùng version/tool/membership hoặc Agent cùng snapshot/Team/Skill/Tool và bỏ gán PM; không xóa file PC. Robot/Tool không đổi quy tắc.
+  - Web cảnh báo xóa vĩnh viễn/phạm vi, toast thành công và hàng biến mất; lỗi giữ modal và toast đỏ. Không đổi Delete thành archived. Form xác nhận Skill/Agent nêu đúng quy tắc mới.
+  - Code: `projects/deletion.py`, `management.py`, `references.py`, `persistence/deletion.py`, migration 018, `runs/artifact_cleanup.py`, Agent/Skill repositories, Web Projects/Catalog; cập nhật OpenAPI bằng `sync-local-ui.cjs` và tài liệu nguồn chuẩn.
+  - Kiểm chứng 2026-11-19: full `.venv/Scripts/python.exe -m pytest -q`: **244 passed, 1 skipped** trước khi bổ sung thêm bốn biến thể kiểm unfinished Run/scope Process; chạy lại `pytest apps/server/tests/integration/projects/test_project_deletion.py -q`: **13 passed**. Suite deletion kiểm lịch sử succeeded/failed/cancelled, chặn cả queued/running/reconciling/cancelling, rollback, giữ dữ liệu khác, Skill/Agent dùng chung/draft, PM/snapshot, file cleanup retry và path ngoài root. Web **21 passed**, TypeScript/Vite build đạt; OpenAPI **94 schemas, 74 paths, 98 operations** đạt. Browser `project-feedback.cjs`: **passed** với fixture API kiểm lỗi/thử lại/thành công/hàng biến mất, toast tự tắt/đóng và vị trí desktop/mobile; không xóa dữ liệu thật.
+  - Giới hạn: cleanup file bị khóa được retry sau, có thể còn object chưa dọn ngay sau commit. Không xóa file PC hoặc history hệ thống ngoài (Temporal); không chạy model hoặc xóa Project người dùng để thử.
+  - Nạp Server local đạt health schema **18**, dữ liệu thật vẫn giữ **2 Project/5 Run**, `foreign_key_check` sạch. Probe trên bản sao SQLite đã xóa được Project có 5 Run và giữ số lượng Skill/Agent/PC, khóa ngoại sạch; bước dọn bản sao cuối probe thất bại do handle SQLite Windows chưa đóng. Sau tiến trình probe thoát, bộ duyệt tự động chặn lệnh dọn file với “blocked by policy”; bản sao ngoài Git còn tại `runtime/project-delete-check-ix9_3cd6/copy.sqlite3`, không dùng làm database ứng dụng.

@@ -1,0 +1,20 @@
+-- Comprehensive CLI model preferences for Codex CLI and Antigravity.
+INSERT OR IGNORE INTO ai_tool_models (id, tool_id, name, model_identifier, status, created_at, updated_at) VALUES
+('cli-codex-61-sol', 'codex', 'GPT-6.1 Sol', 'gpt-6.1-sol', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-61-terra', 'codex', 'GPT-6.1 Terra', 'gpt-6.1-terra', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-6-astra', 'codex', 'GPT-6 Astra', 'gpt-6-astra', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-6-sol', 'codex', 'GPT-6 Sol', 'gpt-6-sol', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-6-luna', 'codex', 'GPT-6 Luna', 'gpt-6-luna', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-terra', 'codex', 'GPT-5.6 Terra', 'gpt-5.6-terra', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-luna', 'codex', 'GPT-5.6 Luna', 'gpt-5.6-luna', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-55', 'codex', 'GPT-5.5', 'gpt-5.5', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-54', 'codex', 'GPT-5.4', 'gpt-5.4', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-54m', 'codex', 'GPT-5.4-Mini', 'gpt-5.4-mini', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-52', 'codex', 'GPT-5.2', 'gpt-5.2', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-codex-reserve', 'codex', 'GPT-Reserve', 'gpt-reserve', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-opus', 'antigravity', 'Claude Opus 4.6 (Thinking)', 'claude-opus-4.6-thinking', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-gpt-oss', 'antigravity', 'GPT-OSS 120B (Medium)', 'gpt-oss-120b-medium', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-gemini-flash', 'antigravity', 'Gemini 3.8 Flash High', 'gemini-3.8-flash-high', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-gemini-carbon', 'antigravity', 'Gemini 4 Carbon', 'gemini-4-carbon', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-gemini-argon', 'antigravity', 'Gemini 4 Argon', 'gemini-4-argon', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+('cli-agy-gemini-hydrogen', 'antigravity', 'Gemini 4 Hydrogen', 'gemini-4-hydrogen', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));

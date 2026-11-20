@@ -1,0 +1,5 @@
+# Install from repository root into .venv.
+-c requirements-lock.txt
+-r apps/server/requirements.txt
+-r apps/client/requirements.txt
+-r requirements-dev.txt

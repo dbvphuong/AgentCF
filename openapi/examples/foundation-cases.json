@@ -1,0 +1,1970 @@
+{
+  "description": "Design examples only. Fixture adapter/model/Skill IDs are synthetic. Schema and graph review are not a running engine or Skill-chain review acceptance.",
+  "schema_cases": [
+    {
+      "name": "generic-single",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": []
+      },
+      "valid": true
+    },
+    {
+      "name": "skill-chain-data-only",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "skill-2": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "skill-2"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "skill-0",
+            "task_key": "skill-0",
+            "name": "skill-0",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-1",
+            "task_key": "skill-1",
+            "name": "skill-1",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-0",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-2",
+            "task_key": "skill-2",
+            "name": "skill-2",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-1",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "skill-0",
+            "target_task_id": "skill-1"
+          },
+          {
+            "source_task_id": "skill-1",
+            "target_task_id": "skill-2"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "generic-fan-out-join",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "combine": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "combine"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "extract",
+            "task_key": "extract",
+            "name": "extract",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "summarize",
+            "task_key": "summarize",
+            "name": "summarize",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "classify",
+            "task_key": "classify",
+            "name": "classify",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "combine",
+            "task_key": "combine",
+            "name": "combine",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "extract",
+            "target_task_id": "summarize"
+          },
+          {
+            "source_task_id": "extract",
+            "target_task_id": "classify"
+          },
+          {
+            "source_task_id": "summarize",
+            "target_task_id": "combine"
+          },
+          {
+            "source_task_id": "classify",
+            "target_task_id": "combine"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "empty-graph",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "tasks": [],
+        "dependencies": []
+      },
+      "valid": false
+    },
+    {
+      "name": "unsupported-human-kind",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "human",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": []
+      },
+      "valid": false
+    },
+    {
+      "name": "reject-shell-config",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": [],
+              "shell": "echo bypass"
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": []
+      },
+      "valid": false
+    },
+    {
+      "name": "zero-timeout",
+      "schema": "ProcessDefinition",
+      "value": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 0,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": []
+      },
+      "valid": false
+    },
+    {
+      "name": "create-generic-run",
+      "schema": "CreateRun",
+      "value": {
+        "process_version_id": "pv-generic",
+        "input": {
+          "text": "fixture"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "reject-runtime-override",
+      "schema": "CreateRun",
+      "value": {
+        "process_version_id": "pv-generic",
+        "input": {
+          "text": "fixture"
+        },
+        "model_id": "mutable-model"
+      },
+      "valid": false
+    },
+    {
+      "name": "reconciling-status",
+      "schema": "RunStatus",
+      "value": "reconciling",
+      "valid": true
+    },
+    {
+      "name": "unknown-status",
+      "schema": "RunStatus",
+      "value": "success",
+      "valid": false
+    },
+    {
+      "name": "stopped-success",
+      "schema": "Complete",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "outcome": "succeeded",
+        "process_stopped": true,
+        "exit_code": 0,
+        "output": {
+          "text": "fixture"
+        },
+        "artifact_ids": [],
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": true
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "reject-unconfirmed-stop",
+      "schema": "Complete",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "outcome": "succeeded",
+        "process_stopped": false,
+        "exit_code": 0,
+        "output": {
+          "text": "fixture"
+        },
+        "artifact_ids": [],
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": true
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "reject-nonzero-success",
+      "schema": "Complete",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "outcome": "succeeded",
+        "process_stopped": true,
+        "exit_code": 1,
+        "output": {
+          "text": "fixture"
+        },
+        "artifact_ids": [],
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": true
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "reject-missing-output",
+      "schema": "Complete",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "outcome": "succeeded",
+        "process_stopped": true,
+        "exit_code": 0,
+        "artifact_ids": [],
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": true
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "observation-old-generation",
+      "schema": "Observation",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "occurred_at": "2026-11-16T00:00:00Z",
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": true
+        },
+        "artifact_ids": []
+      },
+      "valid": true
+    },
+    {
+      "name": "missing-execution-identity",
+      "schema": "ExecutionIdentity",
+      "value": {
+        "generation": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "engine-settle",
+      "schema": "EngineCommand",
+      "value": {
+        "command_id": "command-fixture",
+        "expected_revision": 1,
+        "action": "settle",
+        "task_run_ids": [],
+        "observation_ids": []
+      },
+      "valid": true
+    },
+    {
+      "name": "reject-free-status-engine-command",
+      "schema": "EngineCommand",
+      "value": {
+        "command_id": "command-fixture",
+        "expected_revision": 1,
+        "action": "settle",
+        "task_run_ids": [],
+        "observation_ids": [],
+        "status": "succeeded"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject-running-process-evidence",
+      "schema": "Complete",
+      "value": {
+        "session_id": "session-fixture",
+        "generation": 1,
+        "outcome": "succeeded",
+        "process_stopped": true,
+        "exit_code": 0,
+        "output": {
+          "text": "fixture"
+        },
+        "artifact_ids": [],
+        "process": {
+          "launch_id": "launch-fixture",
+          "journal_state": "stopped",
+          "tree_stopped": false
+        }
+      },
+      "valid": false
+    }
+  ],
+  "graph_cases": [
+    {
+      "name": "generic-single",
+      "definition": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": []
+      },
+      "valid": true
+    },
+    {
+      "name": "skill-chain",
+      "definition": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "skill-2": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "skill-2"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "skill-0",
+            "task_key": "skill-0",
+            "name": "skill-0",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-1",
+            "task_key": "skill-1",
+            "name": "skill-1",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-0",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-2",
+            "task_key": "skill-2",
+            "name": "skill-2",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-1",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "skill-0",
+            "target_task_id": "skill-1"
+          },
+          {
+            "source_task_id": "skill-1",
+            "target_task_id": "skill-2"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "fan-out-join",
+      "definition": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "combine": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "combine"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "extract",
+            "task_key": "extract",
+            "name": "extract",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "summarize",
+            "task_key": "summarize",
+            "name": "summarize",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "classify",
+            "task_key": "classify",
+            "name": "classify",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "combine",
+            "task_key": "combine",
+            "name": "combine",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "extract",
+            "target_task_id": "summarize"
+          },
+          {
+            "source_task_id": "extract",
+            "target_task_id": "classify"
+          },
+          {
+            "source_task_id": "summarize",
+            "target_task_id": "combine"
+          },
+          {
+            "source_task_id": "classify",
+            "target_task_id": "combine"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "cycle",
+      "definition": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "skill-0",
+            "task_key": "skill-0",
+            "name": "skill-0",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-1",
+            "task_key": "skill-1",
+            "name": "skill-1",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-0",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          },
+          {
+            "id": "skill-2",
+            "task_key": "skill-2",
+            "name": "skill-2",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "task_output",
+                "task_id": "skill-1",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "skill-0",
+            "target_task_id": "skill-1"
+          },
+          {
+            "source_task_id": "skill-1",
+            "target_task_id": "skill-2"
+          },
+          {
+            "source_task_id": "skill-2",
+            "target_task_id": "skill-0"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "missing-task",
+      "definition": {
+        "definition_format_version": "1",
+        "interpreter_version": "dag-v1",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "draft-note": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "draft-note"
+          ],
+          "additionalProperties": false
+        },
+        "tasks": [
+          {
+            "id": "draft-note",
+            "task_key": "draft-note",
+            "name": "draft-note",
+            "kind": "agent",
+            "agent": {
+              "agent_id": "fixture-agent",
+              "role_id": "fixture-role",
+              "instructions": "Fixture only",
+              "allowed_tools": []
+            },
+            "runtime": {
+              "adapter_id": "fixture-adapter",
+              "adapter_version": "1",
+              "model_id": "fixture-model",
+              "skill_bundles": []
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "input_mapping": [
+              {
+                "target": "text",
+                "source": "run_input",
+                "pointer": "/text"
+              }
+            ],
+            "required_artifacts": [],
+            "execution_timeout_seconds": 1800,
+            "queue_timeout_seconds": 86400
+          }
+        ],
+        "dependencies": [
+          {
+            "source_task_id": "missing",
+            "target_task_id": "draft-note"
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

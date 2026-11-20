@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f2fa" />
+    <meta
+      name="description"
+      content="Agent CF — prototype giao diện quản trị process, agent và runner."
+    />
+    <title>Agent CF — Control Center</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%238b70b5'/%3E%3Cpath d='M18 40 30 16h7l10 24h-8l-2-6H27l-3 6h-6Zm12-12h5l-2-7-3 7Z' fill='white'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Điều hướng chính">
+        <div class="brand-row">
+          <button class="brand" data-route="dashboard" aria-label="Về tổng quan">
+            <span class="brand-mark" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="brand-copy">
+              <strong>Agent CF</strong>
+            </span>
+          </button>
+          <button class="icon-button sidebar-close" id="sidebarClose" aria-label="Đóng menu">
+            <span data-icon="close"></span>
+          </button>
+        </div>
+
+        <nav class="nav-scroll">
+          <div class="nav-group">
+            <button class="nav-item active" data-route="dashboard">
+              <span data-icon="dashboard"></span><span>Overview</span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-label">Công việc</p>
+            <button class="nav-item" data-route="projects">
+              <span data-icon="folder"></span><span>Projects</span>
+              <span class="nav-count">4</span>
+            </button>
+            <button class="nav-item" data-route="runs">
+              <span data-icon="play-circle"></span><span>Runs</span>
+              <span class="nav-live" id="runningCount"><i></i>2</span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-label">Thực thi</p>
+            <button class="nav-item" data-route="agents">
+              <span data-icon="agent"></span><span>Agents</span>
+            </button>
+            <button class="nav-item" data-route="skills">
+              <span data-icon="file"></span><span>Skills</span>
+            </button>
+            <button class="nav-item" data-route="tools">
+              <span data-icon="process"></span><span>Robots</span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-label">Quản trị</p>
+            <button class="nav-item" data-route="runners">
+              <span data-icon="monitor"></span><span>PC</span>
+            </button>
+            <button class="nav-item" data-route="settings">
+              <span data-icon="settings"></span><span>Settings</span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="runner-mini-card">
+            <div class="runner-mini-head">
+              <span class="status-pulse"></span>
+              <strong>PC online</strong>
+              <span>3/4</span>
+            </div>
+            <div class="mini-progress"><span style="width: 75%"></span></div>
+            <button type="button" data-route="runners">Xem trạng thái <span>→</span></button>
+          </div>
+          <button class="user-menu" type="button" data-action="profile">
+            <span class="user-avatar">PC</span>
+            <span class="user-copy"><strong>Phuong Chu</strong><small>Workspace owner</small></span>
+            <span data-icon="more"></span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+      <section class="main-column">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button menu-button" id="menuButton" aria-label="Mở menu">
+              <span data-icon="menu"></span>
+            </button>
+            <div class="breadcrumbs" id="breadcrumbs">
+              <span>Workspace</span><span>/</span><strong>Tổng quan</strong>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button class="search-trigger" type="button" id="searchTrigger">
+              <span data-icon="search"></span>
+              <span>Tìm kiếm mọi thứ...</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            <button class="icon-button" type="button" data-action="help" aria-label="Trợ giúp">
+              <span data-icon="help"></span>
+            </button>
+            <button class="icon-button notification-button" type="button" data-action="notifications" aria-label="Thông báo">
+              <span data-icon="bell"></span><i></i>
+            </button>
+            <button class="top-avatar" type="button" data-action="profile" aria-label="Tài khoản Phuong Chu">PC</button>
+          </div>
+        </header>
+
+        <main id="app" tabindex="-1"></main>
+      </section>
+    </div>
+
+    <div class="command-palette" id="commandPalette" aria-hidden="true">
+      <div class="palette-backdrop" data-action="close-palette"></div>
+      <section class="palette-panel" role="dialog" aria-modal="true" aria-label="Tìm kiếm">
+        <div class="palette-search">
+          <span data-icon="search"></span>
+          <input id="commandInput" type="search" placeholder="Tìm project, process, run hoặc runner..." autocomplete="off" />
+          <kbd>ESC</kbd>
+        </div>
+        <div class="palette-content" id="paletteContent"></div>
+      </section>
+    </div>
+
+    <div class="modal-root" id="modalRoot" aria-live="polite"></div>
+    <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="robots.js"></script>
+    <script src="projects.js"></script>
+    <script src="overview.js"></script>
+    <script src="roles.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

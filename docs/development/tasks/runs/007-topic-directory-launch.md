@@ -1,0 +1,21 @@
+# Chạy Process theo thư mục chủ đề có sẵn
+
+[Module](README.md) · [Requirements](../../../product/requirements.md#cấu-hình-node-dùng-runtime-local) · [ADR 0009](../../../architecture/decisions/0009-run-topic-context.md)
+
+## RUN-010
+
+- [x] **RUN-010 — Chọn/dán thư mục chủ đề, các node dùng cùng ngữ cảnh** — Xong (Skill local) | Feature/UX
+  - Người dùng mở Project root trên Codex, gọi lần lượt Skill cho một chủ đề đã tạo thư mục. Web thực hiện tương đương, không ép khai báo mapping/schema hoặc lặp chủ đề trong từng node.
+  - Migration 019 thêm `projects.working_directory` (mặc định rỗng, không đổi dữ liệu cũ). Form Project cấu hình root một lần; node mới điền sẵn. Publish dùng root Project/PC của Skill nếu node chưa có giá trị; giá trị riêng của node vẫn được giữ và snapshot được ghim. Clone giữ root. Đổi Project không sửa snapshot/Run cũ.
+  - GET `/v1/process-versions/{version_id}/run-context` đọc snapshot published, báo root/PC hoặc lý do không phù hợp. Form Run mặc định chọn/dán đường dẫn chủ đề và yêu cầu riêng tùy chọn. Browse dùng metadata directory qua Client/heartbeat hiện có; không upload file, không đọc đĩa PC ở Server. Quy trình khác vẫn nhập JSON nâng cao.
+  - Input Run giữ `topic_directory`, `topic` lấy theo tên thư mục và `request` tùy chọn. Server kiểm đường dẫn tuyệt đối, không `..`, là thư mục con root; các bước local cần cùng PC/root. Client kiểm thư mục thật tồn tại/resolve trong root trước spawn, không tự mkdir. Claim giữ ngữ cảnh Run cho mọi node, kể cả có input node riêng.
+  - Client giữ cwd ở root Project, yêu cầu đọc Skill gốc và dùng thư mục chủ đề đã có, bước sau đọc file bước trước theo Skill. Inventory chỉ quét chủ đề khi chạy theo chủ đề; không quét/hash toàn bộ Project. Metadata kết quả giữ cả root/chủ đề và file thật. Thiếu thư mục hoặc không tạo/sửa file thật thì thất bại; không ghi chat thay file.
+  - Form node đổi thành Nhiệm vụ bổ sung không bắt buộc, bỏ ba ô mapping/schema chưa hoàn thiện khỏi UI; dữ liệu cũ vẫn giữ khi sửa node. Timeout vẫn trong phần nâng cao.
+  - Code: `domain/processes/topic.py`, Runs API/repository, Project management, `RunForm.tsx`, shared `PcPathInput.tsx` dùng lại từ Skill picker, NodeForm/ProcessEditor, Client local_skill và RunDetail. Bộ cài build lại và module Client đã cài cập nhật khi Client không chạy, giữ credential/Skill/file chủ đề.
+  - Kiểm chứng 2026-11-19:
+    - `.venv/Scripts/python.exe -m pytest -q`: **266 passed, 1 skipped**. Kiểm root snapshot không đổi, đường dẫn sai/ngoài root/cha/thiếu bị từ chối, generic input tương thích; Client không spawn/không tạo thư mục khi thiếu; hai node tuần tự qua daemon cùng cwd/topic, bước sau đọc file bước trước, metadata đúng. Adapter fixture không gọi model.
+    - Web **21 passed**, TypeScript/Vite build đạt. `node apps/web/tests/browser/topic-run.cjs`: **passed**, chọn/dán path, browse thư mục ẩn file, yêu cầu riêng, không gửi Run khi path trống và payload không override cwd. API được chặn bằng fixture, không tạo Run thật.
+    - `node openapi/sync-local-ui.cjs`, `node openapi/check-contract.cjs`: **94 schemas, 75 paths, 99 operations** đạt.
+    - `.venv/Scripts/python.exe infra/build_client.py`: bộ cài **17,701,888 bytes**, chứa Client mới. Nạp Server local schema 19 và mở Client nền; không tạo/chỉnh Project/node/Skill/Run thật để thử. Probe metadata PC thật chưa hoàn tất: Skill còn gắn PC đã xóa, credential Client lưu trên máy cũng đã bị thu hồi; cần người dùng Connect PC lại và cập nhật nguồn Skill/Publish trước. Không coi raw `runners.status=online` là heartbeat còn mới; picker dùng `display_status`, offline thì báo ngay/không browse, vẫn cho dán path.
+    - Sau full suite, bổ sung thông báo publish cho PC nguồn đã xóa và regression: suite `test_topic_run.py` **9 passed**. Browser kiểm thêm raw status online nhưng display offline: nút browse bị tắt, vẫn dán được, không chờ request vô ích.
+  - Giới hạn: chế độ chủ đề đơn giản cần các Skill local cùng PC/root và thư mục con root đã tồn tại; cấu hình khác có lý do rõ và input nâng cao. Skill/model thực tế quyết định nội dung output, không có tên Skill/topic hard-code. Chưa nghiệm thu model thật hoặc vòng Agent API tổng quát từ test fixture; giữ RTM-008/RUN-008/BASE-003 mở.

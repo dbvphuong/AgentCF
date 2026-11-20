@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <!-- Gradient for 'C' Loop: Electric Cyan to Neon Sky Blue -->
+    <linearGradient id="grad-c" x1="15%" y1="15%" x2="85%" y2="85%">
+      <stop offset="0%" stop-color="#00F5FF" />
+      <stop offset="40%" stop-color="#00D2FF" />
+      <stop offset="100%" stop-color="#0066FF" />
+    </linearGradient>
+
+    <!-- Gradient for 'F' Upper Hood: Deep Royal Purple to Vivid Magenta -->
+    <linearGradient id="grad-f-hood" x1="20%" y1="90%" x2="80%" y2="10%">
+      <stop offset="0%" stop-color="#581C87" />
+      <stop offset="35%" stop-color="#9333EA" />
+      <stop offset="70%" stop-color="#C026D3" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+
+    <!-- Gradient for 'F' Main Ribbon & Crossbar: Neon Magenta / Fuchsia -->
+    <linearGradient id="grad-f-cross" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#E11D48" />
+      <stop offset="40%" stop-color="#F43F5E" />
+      <stop offset="75%" stop-color="#FB7185" />
+      <stop offset="100%" stop-color="#FDA4AF" />
+    </linearGradient>
+
+    <!-- Gradient for Lower Ribbon Transition (C to F) -->
+    <linearGradient id="grad-cf-join" x1="20%" y1="100%" x2="70%" y2="50%">
+      <stop offset="0%" stop-color="#0066FF" />
+      <stop offset="45%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#C026D3" />
+    </linearGradient>
+
+    <!-- Specular Rim Highlight -->
+    <linearGradient id="specular-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Ambient Shadow for 3D Overlaps -->
+    <radialGradient id="inner-shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1E1B4B" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#1E1B4B" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- 1. The 'C' Loop: Elegant fluid crescent curve -->
+  <!-- Outer C curve -->
+  <path
+    d="M 43 36 C 40 31, 33 27, 26 30 C 17 34, 12 44, 13 56 C 14 69, 23 80, 37 80 C 47 80, 52 74, 53 66 C 53 60, 48 57, 43 61 C 37 66, 31 66, 26 62 C 21 58, 20 50, 22 43 C 24 37, 30 36, 35 38 C 39 40, 42 41, 43 36 Z"
+    fill="url(#grad-c)"
+  />
+
+  <!-- Glossy 3D Highlight on C -->
+  <path
+    d="M 41 34 C 33 29, 22 34, 16 45 C 13 52, 14 62, 18 70"
+    stroke="url(#specular-light)"
+    stroke-width="2"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- 2. Bottom Join (C sweeping into F) -->
+  <path
+    d="M 37 80 C 44 80, 50 76, 54 68 C 57 62, 58 54, 58 46 C 54 50, 49 55, 43 61 C 49 68, 48 76, 37 80 Z"
+    fill="url(#grad-cf-join)"
+  />
+
+  <!-- 3. 'F' Upper Hood / Arch: Deep curves over to the right -->
+  <!-- Shadow under hood -->
+  <path
+    d="M 52 50 C 53 38, 59 22, 69 16 C 78 11, 88 17, 85 28 C 83 34, 76 37, 68 37 C 62 37, 56 42, 52 50 Z"
+    fill="url(#grad-f-hood)"
+  />
+
+  <!-- Hood highlight rim -->
+  <path
+    d="M 57 32 C 62 19, 73 14, 82 17 C 86 19, 87 24, 84 29"
+    stroke="url(#specular-light)"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- 4. 'F' Dynamic Crossbar Wing: Extends horizontally right -->
+  <path
+    d="M 52 48 C 56 46, 62 44, 73 45 C 80 46, 86 49, 84 54 C 82 58, 76 60, 68 59 C 60 58, 55 54, 52 48 Z"
+    fill="url(#grad-f-cross)"
+  />
+
+  <!-- Crossbar top glossy highlight -->
+  <path
+    d="M 54 47 C 62 45, 74 46, 81 50"
+    stroke="#FFFFFF"
+    stroke-width="1.2"
+    stroke-linecap="round"
+    stroke-opacity="0.75"
+    fill="none"
+  />
+</svg>
