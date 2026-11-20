@@ -1,5 +1,7 @@
 """Editable CLI model preferences. Never reuse the API provider/model catalog."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 import shutil

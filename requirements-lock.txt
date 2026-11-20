@@ -20,7 +20,7 @@ pydantic_core==2.46.4
 Pygments==2.21.0
 pytest==9.1.1
 starlette==1.10.0
-temporalio @ file:///E:/PhuongCH/AI/AgentCF/runtime/wheels/temporalio-1.36.1-cp311-abi3-win_amd64.whl#sha256=42675a52865cdd71c3a7a42f7415157af7574458788df419b723167be282e51d
+temporalio==1.36.1
 types-protobuf==7.35.1.20260906
 typing-inspection==0.4.5
 typing_extensions==4.16.0
