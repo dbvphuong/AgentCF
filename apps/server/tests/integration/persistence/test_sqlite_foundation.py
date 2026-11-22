@@ -30,7 +30,7 @@ def definition():
 @pytest.fixture
 def database(tmp_path):
     database = Database(tmp_path / "business.sqlite3")
-    assert database.migrate() == 23
+    assert database.migrate() == 24
     return database
 
 
@@ -54,11 +54,11 @@ def create_run(database, key="create-1"):
 
 
 def test_fresh_and_repeated_migrations(database):
-    assert database.migrate() == 23
-    assert database.health() == {"schema_version": 23, "foreign_keys": 1, "journal_mode": "wal"}
+    assert database.migrate() == 24
+    assert database.health() == {"schema_version": 24, "foreign_keys": 1, "journal_mode": "wal"}
     with database.connect() as connection:
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert len(connection.execute("SELECT * FROM schema_migrations").fetchall()) == 23
+        assert len(connection.execute("SELECT * FROM schema_migrations").fetchall()) == 24
 
 
 def test_skill_scope_migration_preserves_existing_skills_as_global(tmp_path):
@@ -67,7 +67,7 @@ def test_skill_scope_migration_preserves_existing_skills_as_global(tmp_path):
     with db.transaction() as conn:
         conn.execute("INSERT INTO skills(id,name,description) VALUES ('existing','Existing Skill','Preserved')")
         conn.execute("INSERT INTO skill_versions(id,skill_id,version_number,status,instructions) VALUES ('v','existing',1,'draft','Original instructions')")
-    assert db.migrate() == 23
+    assert db.migrate() == 24
     with db.connect() as conn:
         assert dict(conn.execute("SELECT name,description,is_global FROM skills WHERE id='existing'").fetchone()) == {"name": "Existing Skill", "description": "Preserved", "is_global": 1}
         assert conn.execute("SELECT instructions FROM skill_versions WHERE id='v'").fetchone()[0] == "Original instructions"
@@ -78,7 +78,7 @@ def test_upgrade_preserves_existing_definition(tmp_path, definition):
     database = Database(tmp_path / "upgrade.db")
     assert database.migrate(target_version=1) == 1
     publish(database, definition)
-    assert Database(database.path).migrate() == 23
+    assert Database(database.path).migrate() == 24
     assert ProcessRepository(Database(database.path)).get_version("version-1")["definition"] == definition
     assert RunRepository(Database(database.path)).get(create_run(database))["input"] == {"text": "sample"}
 
@@ -280,12 +280,12 @@ def test_health_rejects_old_schema_without_upgrading(tmp_path):
 
 def test_health_rejects_missing_table_and_invalid_history(database):
     with database.transaction() as connection:
-        connection.execute("DELETE FROM schema_migrations WHERE version=23")
+        connection.execute("DELETE FROM schema_migrations WHERE version=24")
     with pytest.raises(MigrationError, match="history is incomplete"):
         database.health()
     # No repair is attempted by a health call.
     with database.connect() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 22
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 23
     with database.transaction() as connection:
         connection.execute("DROP TABLE artifacts")
     with pytest.raises(MigrationError, match="missing required tables"):

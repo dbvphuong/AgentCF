@@ -15,7 +15,8 @@ export function NodeForm({ node, kind, agents, models, skills, runners, robotVer
   const initialEffort = shouldShowReasoningEffort(adapter, initialModel)
     ? (node.runtime?.reasoning_effort ?? "default")
     : "default";
-  return <EntityForm initial={{ ...node, adapter, node_model_id: modelId ?? "", node_reasoning_effort: initialEffort }}
+  const initialOrchestration = node.orchestration_enabled === false ? "off" : "on";
+  return <EntityForm initial={{ ...node, adapter, node_model_id: modelId ?? "", node_reasoning_effort: initialEffort, orchestration_mode: initialOrchestration }}
     onValuesChange={(next, previous) => {
       if (kind !== "agent") return next;
       if (next.adapter !== previous.adapter) {
@@ -53,6 +54,10 @@ export function NodeForm({ node, kind, agents, models, skills, runners, robotVer
           hint: "Mặc định chạy Skill đã chọn cho chủ đề của lần chạy. Chỉ nhập yêu cầu riêng cho bước này; không cần chép lại Skill hoặc nhập lại chủ đề." },
         { key: "runner_id", label: "PC thực thi", type: "select" as const, options: runners,
           hint: "Tự chọn PC chứa file Skill. Server kiểm tra khi lưu và chạy Process." },
+        { key: "orchestration_mode", label: "Agent điều phối kiểm tra kết quả", type: "select" as const, default: "on", options: [
+          { id: "on", name: "Bật — Đọc kết quả, tự trả lời & phân tích lỗi" },
+          { id: "off", name: "Tắt — Chạy thẳng không qua Agent API" },
+        ] },
       ] : [
         { key: "robot_version_id", label: "Robot version", type: "select" as const, required: true, options: robotVersions },
         { key: "runner_id", label: "PC thực thi", type: "select" as const, required: true, options: runners },

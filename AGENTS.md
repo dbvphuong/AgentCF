@@ -13,7 +13,7 @@ Tài liệu này quy định cách các coding agent làm việc trong repositor
 
 - BASE-011: Các nhóm xóa trên Web hiển thị tiếng Việt với tên Model/Agent/Skill/Tool/Robot/Project/Process/PC liên quan; Run có giờ Việt Nam/trạng thái, không đưa ID kỹ thuật/raw JSON thay tên. Giữ chính sách/mã HTTP/giao dịch xóa; Robot có modal lỗi/thử lại, không đề xuất Archive. 135 integration tests liên quan, 23 Web tests, build và 10 browser flows đạt; Server local health/schema 23 và số hàng dữ liệu giữ nguyên sau nạp lại. Phạm vi/giới hạn tại `docs/development/tasks/base/010-deletion-feedback.md`.
 
-- BASE-010: Sidebar dùng CF phẳng/wordmark SVG, tám icon nét 1.7 và hover/nhấn đổi màu không xê dịch; giữ tên menu/hash/command palette/nghiệp vụ. Build/TypeScript, 22 Web tests và browser fixture navigation/mobile/reduced-motion đạt. File logo cũ giữ nguyên, không đổi API/runtime. Bằng chứng và giới hạn tại `docs/development/tasks/base/009-sidebar-identity.md`.
+- BASE-010: Sidebar dùng logo SVG chữ C mở ôm chữ F, có ô vuông tím và chữ Agent CF. Tám icon nét 1.7 và hover/nhấn đổi màu không xê dịch; giữ tên menu/hash/command palette/nghiệp vụ. Bằng chứng và giới hạn tại `docs/development/tasks/base/009-sidebar-identity.md`.
 
 - RTM-011: Client 0.3.2 gọi Skill local bằng prompt trực tiếp hai dòng “Gọi skill <path .md> / cho chủ đề <path>”; chỉ nối lưu ý node/lần chạy do người dùng nhập. Bỏ file yêu cầu trung gian và chỉ dẫn/JSON tự ghép; giữ cwd Project, quyền, timeout, model và kiểm tra file thật. Chi tiết `docs/development/tasks/runtime/008-direct-skill-invocation.md`; không tự đóng các lỗi CLI/model/mạng hoặc RTM-008/RUN-008/BASE-003.
 

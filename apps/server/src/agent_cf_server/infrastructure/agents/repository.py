@@ -51,6 +51,11 @@ class AgentRepository:
         skill_ids: list[str] | None = None,
         allowed_tool_ids: list[str] | None = None,
         status: str = "active",
+        template_id: str | None = None,
+        allow_reply: bool = True,
+        allow_retry: bool = True,
+        allow_need_human: bool = True,
+        max_turns: int = 10,
     ) -> dict[str, Any]:
         skill_ids = skill_ids or []
         allowed_tool_ids = allowed_tool_ids or []
@@ -90,9 +95,23 @@ class AgentRepository:
 
             try:
                 conn.execute(
-                    "INSERT INTO agents (id, name, role_id, model_id, instructions, status, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (agent_id, name, role_id, model_id, instructions, status, _now_iso(), _now_iso()),
+                    "INSERT INTO agents (id, name, role_id, model_id, instructions, status, template_id, allow_reply, allow_retry, allow_need_human, max_turns, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        agent_id,
+                        name,
+                        role_id,
+                        model_id,
+                        instructions,
+                        status,
+                        template_id,
+                        int(bool(allow_reply)),
+                        int(bool(allow_retry)),
+                        int(bool(allow_need_human)),
+                        int(max_turns),
+                        _now_iso(),
+                        _now_iso(),
+                    ),
                 )
                 for sid in skill_ids:
                     conn.execute("INSERT INTO agent_skills (agent_id, skill_id) VALUES (?, ?)", (agent_id, sid))
@@ -152,6 +171,9 @@ class AgentRepository:
             ).fetchall()
             result["allowed_tools"] = [dict(t) for t in tools]
             result["allowed_tool_ids"] = [t["id"] for t in tools]
+            for flag in ("allow_reply", "allow_retry", "allow_need_human"):
+                if flag in result:
+                    result[flag] = bool(result[flag])
             return result
 
     def list_agents(self, status: str | None = None) -> list[dict[str, Any]]:
@@ -177,6 +199,9 @@ class AgentRepository:
                 item["allowed_tool_ids"] = [
                     r["tool_id"] for r in conn.execute("SELECT tool_id FROM agent_allowed_tools WHERE agent_id = ?", (item["id"],)).fetchall()
                 ]
+                for flag in ("allow_reply", "allow_retry", "allow_need_human"):
+                    if flag in item:
+                        item[flag] = bool(item[flag])
                 results.append(item)
             return results
 
@@ -190,6 +215,11 @@ class AgentRepository:
         skill_ids: list[str] | None = None,
         allowed_tool_ids: list[str] | None = None,
         status: str | None = None,
+        template_id: str | None = None,
+        allow_reply: bool | None = None,
+        allow_retry: bool | None = None,
+        allow_need_human: bool | None = None,
+        max_turns: int | None = None,
     ) -> dict[str, Any]:
         with self.database.transaction() as conn:
             existing = conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
@@ -236,6 +266,21 @@ class AgentRepository:
             if status is not None:
                 updates.append("status = ?")
                 params.append(status)
+            if template_id is not None:
+                updates.append("template_id = ?")
+                params.append(template_id or None)
+            if allow_reply is not None:
+                updates.append("allow_reply = ?")
+                params.append(int(bool(allow_reply)))
+            if allow_retry is not None:
+                updates.append("allow_retry = ?")
+                params.append(int(bool(allow_retry)))
+            if allow_need_human is not None:
+                updates.append("allow_need_human = ?")
+                params.append(int(bool(allow_need_human)))
+            if max_turns is not None:
+                updates.append("max_turns = ?")
+                params.append(int(max_turns))
 
             updates.append("updated_at = ?")
             params.append(_now_iso())
@@ -296,6 +341,11 @@ class AgentRepository:
             "role": {"id": agent["role_id"], "name": agent["role_name"]},
             "model": {"id": agent["model_id"], "name": agent["model_name"], "model_identifier": agent["model_identifier"]},
             "instructions": agent["instructions"],
+            "template_id": agent.get("template_id"),
+            "allow_reply": agent.get("allow_reply", True),
+            "allow_retry": agent.get("allow_retry", True),
+            "allow_need_human": agent.get("allow_need_human", True),
+            "max_turns": agent.get("max_turns", 10),
             "skills": [
                 {"id": s["id"], "name": s["name"]} for s in agent.get("skills", [])
             ],

@@ -64,6 +64,8 @@ const artifacts = process.env.ARTIFACT_DIR || 'runtime/sidebar-review';
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: base + '/#skills' });
     await wait('document.querySelectorAll(".nav-item").length === 8 && document.querySelector(".brand-wordmark")?.naturalWidth > 0');
+    assert.equal(await evaluate('document.querySelector(".brand-wordmark").getAttribute("src")'), '/logos/agent-cf-sidebar.svg');
+    assert.equal(await evaluate('document.querySelector(".brand").hash'), '#overview');
     const routes = ['overview', 'projects', 'runs', 'agents', 'skills', 'robots', 'pc', 'settings'];
     for (const route of routes) {
       await evaluate(`document.querySelector('.nav-item[href="#${route}"]').click()`);

@@ -19,6 +19,7 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
   const [loading, setLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [continuing, setContinuing] = useState(false);
+  const [humanReply, setHumanReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactRef | null>(null);
   const [artifactContent, setArtifactContent] = useState<string | null>(null);
@@ -85,11 +86,15 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
     }
   };
 
-  const handleContinue = async () => {
+  const handleContinue = async (decision = "proceed", replyText?: string) => {
     setContinuing(true);
     try {
-      const updated = await continueRun(runId, { decision: "proceed" });
+      const updated = await continueRun(runId, {
+        decision,
+        feedback: (replyText ?? humanReply).trim(),
+      });
       setRun(updated);
+      setHumanReply("");
       await loadData();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Tiếp tục Run thất bại.");
@@ -149,6 +154,9 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
   const isTerminal = ["succeeded", "failed", "cancelled"].includes(run.status);
   const version = process?.versions?.find((v: RecordData) => v.id === run.process_version_id);
   const nodeName = (id: string, index: number) => version?.definition?.tasks?.find((t: RecordData) => t.id === id)?.name || `Bước ${index + 1}`;
+  const waitingTask = run.task_runs.find((t) => t.waiting_for || t.waiting_context || t.attention_reason);
+  const suggestedOptions = waitingTask?.waiting_context?.suggested_options ?? [];
+  const waitingSummary = waitingTask?.waiting_context?.summary_vi;
 
   return (
     <div className="run-detail-container">
@@ -176,7 +184,7 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              onClick={handleContinue}
+              onClick={() => handleContinue("proceed")}
               disabled={continuing}
             >
               {continuing ? "Đang xử lý…" : "Tiếp tục (Continue)"}
@@ -196,20 +204,59 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
       </div>
 
       {run.attention_reason && (
-        <div className="attention-banner">
-          <div>
-            <strong>Đang chờ người dùng:</strong> {run.attention_reason}
+        <div className="attention-banner attention-banner-interactive">
+          <div className="attention-content">
+            <strong>Đang chờ bạn trả lời:</strong> {run.attention_reason}
+            {waitingSummary && waitingSummary !== run.attention_reason && (
+              <div className="attention-subsummary">{waitingSummary}</div>
+            )}
+            {!isTerminal && (
+              <div className="human-reply-box">
+                {suggestedOptions.length > 0 && (
+                  <div className="suggested-options">
+                    {suggestedOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        disabled={continuing}
+                        onClick={() => handleContinue("continue", opt)}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="human-reply-row">
+                  <input
+                    type="text"
+                    placeholder="Nhập câu trả lời hoặc chỉ dẫn cho công cụ AI…"
+                    value={humanReply}
+                    onChange={(e) => setHumanReply(e.target.value)}
+                    disabled={continuing}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleContinue("continue")}
+                    disabled={continuing}
+                  >
+                    {continuing ? "Đang gửi…" : "Gửi & Tiếp tục"}
+                  </button>
+                  {waitingTask?.waiting_context && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => handleContinue("approved", humanReply || "Đã hoàn tất")}
+                      disabled={continuing}
+                    >
+                      Xác nhận đã xong
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          {!isTerminal && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={handleContinue}
-              disabled={continuing}
-            >
-              {continuing ? "Đang xử lý…" : "Tiếp tục ngay"}
-            </button>
-          )}
         </div>
       )}
 
@@ -334,7 +381,20 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
                     </td>
                     <td>{t.generation}</td>
                     <td>
-                      {t.output && <span className="text-success">Có kết quả</span>}
+                      {t.output && (
+                        <div>
+                          <span className="text-success">
+                            {typeof t.output.agent_summary === "string" && t.output.agent_summary
+                              ? t.output.agent_summary
+                              : "Có kết quả"}
+                          </span>
+                          {typeof t.output.route === "string" && t.output.route && (
+                            <span className="perm-pill perm-reply" style={{ marginLeft: 6 }}>
+                              Nhánh: {t.output.route}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {t.error && <span className="text-danger">{(t.error.message as string) || "Lỗi"}</span>}
                       {!t.output && !t.error && <span className="text-muted">-</span>}
                     </td>

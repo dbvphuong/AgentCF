@@ -24,7 +24,19 @@ def file_inventory(directory: Path) -> dict[str, dict]:
     return files
 
 
-def execute_local_skill(*, adapter, task, input_data, runner_id, log_dir, on_started, session_id=None):
+def execute_local_skill(
+    *,
+    adapter,
+    task,
+    input_data,
+    runner_id,
+    log_dir,
+    on_started,
+    session_id=None,
+    prompt_override=None,
+    strict_output_check=True,
+    baseline_inventory=None,
+):
     source = task["skill_snapshot"]
     if source.get("source_runner_id") != runner_id or task.get("runner_id") != runner_id:
         raise ValueError("PC không khớp PC sở hữu file Skill")
@@ -47,17 +59,20 @@ def execute_local_skill(*, adapter, task, input_data, runner_id, log_dir, on_sta
     skill_path.read_text(encoding="utf-8-sig")
     source_hash = hashlib.sha256(skill_path.read_bytes()).hexdigest()
     inventory_root = topic_directory or working
-    before = file_inventory(inventory_root)
-    # The original Skill owns the workflow. Pass the user's invocation directly,
-    # without adding another set of instructions or a request-file indirection.
-    prompt = f"Gọi skill {skill_path}"
-    topic = str(topic_directory) if topic_directory else input_data.get("topic")
-    if topic:
-        prompt += f"\ncho chủ đề {topic}"
-    # Only append notes explicitly entered by the user, without adding rules.
-    for note in (task.get("instructions"), input_data.get("request")):
-        if isinstance(note, str) and note.strip():
-            prompt += "\n" + note.strip()
+    before = baseline_inventory if baseline_inventory is not None else file_inventory(inventory_root)
+    if isinstance(prompt_override, str) and prompt_override.strip():
+        prompt = prompt_override.strip()
+    else:
+        # The original Skill owns the workflow. Pass the user's invocation directly,
+        # without adding another set of instructions or a request-file indirection.
+        prompt = f"Gọi skill {skill_path}"
+        topic = str(topic_directory) if topic_directory else input_data.get("topic")
+        if topic:
+            prompt += f"\ncho chủ đề {topic}"
+        # Only append notes explicitly entered by the user, without adding rules.
+        for note in (task.get("instructions"), input_data.get("request")):
+            if isinstance(note, str) and note.strip():
+                prompt += "\n" + note.strip()
     method = getattr(adapter, "execute_local_skill", None)
     if method is None:
         raise ValueError("Adapter này chưa được kiểm chứng cho Skill tạo/sửa file tại PC")
@@ -75,13 +90,13 @@ def execute_local_skill(*, adapter, task, input_data, runner_id, log_dir, on_sta
     after = file_inventory(inventory_root)
     changed = [value for key, value in after.items() if before.get(key) != value]
     source_unchanged = skill_path.exists() and hashlib.sha256(skill_path.read_bytes()).hexdigest() == source_hash
-    if result.success and (not changed or not source_unchanged):
+    if result.success and (not source_unchanged or (strict_output_check and not changed)):
         result = RuntimeExecutionResult(
             success=False, exit_code=result.exit_code, session_id=result.session_id,
-            error_code="local_output_missing" if not changed else "skill_source_modified",
+            error_code="local_output_missing" if (strict_output_check and not changed) else "skill_source_modified",
             error_message=(
                 f"Runtime chưa tạo/sửa file output thực tế trong {inventory_root}"
-                if not changed
+                if (strict_output_check and not changed)
                 else f"Runtime đã thay đổi Skill nguồn ({skill_path})"
             ),
         )

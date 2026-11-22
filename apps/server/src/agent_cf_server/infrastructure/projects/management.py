@@ -306,7 +306,18 @@ class ProjectManagement:
             role = self.required(conn, "roles", agent["role_id"])
             if any(row["status"] != "active" for row in (agent, model, provider, role)):
                 raise ValueError(f"Node {tid}: Agent/model/provider/role không active")
-            task["agent_snapshot"] = {k: agent[k] for k in ("id", "name", "role_id", "instructions", "model_id")}
+            task["agent_snapshot"] = {
+                "id": agent["id"],
+                "name": agent["name"],
+                "role_id": agent["role_id"],
+                "instructions": agent["instructions"],
+                "model_id": agent["model_id"],
+                "template_id": agent.get("template_id"),
+                "allow_reply": bool(agent.get("allow_reply", 1)),
+                "allow_retry": bool(agent.get("allow_retry", 1)),
+                "allow_need_human": bool(agent.get("allow_need_human", 1)),
+                "max_turns": int(agent.get("max_turns") or 10),
+            }
             if task["kind"] == "agent":
                 runtime = task.get("runtime", {})
                 if runtime.get("adapter") not in ("codex", "antigravity") or not runtime.get("model_id"):

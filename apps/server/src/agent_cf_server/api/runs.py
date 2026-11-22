@@ -68,6 +68,18 @@ class RecordObservationRequest(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
 
 
+class EvaluateTurnRequest(BaseModel):
+    turn_number: int = Field(default=1, ge=1, le=100)
+    output_text: str = ""
+    session_id: str | None = None
+    exit_code: int | None = 0
+    error_code: str | None = None
+    error_message: str | None = None
+    local_files: list[dict[str, Any]] = Field(default_factory=list)
+    conversation_history: list[dict[str, Any]] = Field(default_factory=list)
+    require_local_file: bool = True
+
+
 def runs_router(repository: RunRepository, artifacts_dir: Path) -> APIRouter:
     router = APIRouter(tags=["runs"])
 
@@ -340,6 +352,33 @@ def runs_router(repository: RunRepository, artifacts_dir: Path) -> APIRouter:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         except IdempotencyConflict as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="idempotency_conflict") from exc
+
+    @router.post("/v1/attempts/{attempt_id}/turn", operation_id="evaluateAttemptTurn")
+    def evaluate_attempt_turn(
+        attempt_id: str,
+        payload: EvaluateTurnRequest,
+        execution_token: str = Header(..., alias="X-Execution-Token"),
+    ) -> dict[str, Any]:
+        try:
+            return repository.evaluate_attempt_turn(
+                attempt_id=attempt_id,
+                execution_token=execution_token,
+                turn_number=payload.turn_number,
+                output_text=payload.output_text,
+                session_id=payload.session_id,
+                exit_code=payload.exit_code,
+                error_code=payload.error_code,
+                error_message=payload.error_message,
+                local_files=payload.local_files,
+                conversation_history=payload.conversation_history,
+                require_local_file=payload.require_local_file,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found") from exc
+        except AuthenticationError as exc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        except ConflictError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     # Artifacts

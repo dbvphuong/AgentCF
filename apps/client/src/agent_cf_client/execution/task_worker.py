@@ -175,6 +175,51 @@ class TaskExecutionWorker:
                 raise ConnectionError(f"Upload artifact failed ({up_resp.status_code}): {up_resp.text}")
             return artifact_id
 
+    def _renew_lease(
+        self,
+        server_url: str,
+        creds: dict[str, Any],
+        execution_token: str,
+        attempt_id: str,
+        lease_seconds: int = 120,
+    ) -> None:
+        renew_url = f"{server_url}/v1/attempts/{attempt_id}/renew"
+        headers = {
+            "Authorization": f"Bearer {creds['runner_token']}",
+            "X-Execution-Token": execution_token,
+        }
+        try:
+            with httpx.Client(timeout=self.timeout_seconds) as client:
+                client.post(
+                    renew_url,
+                    json={"session_id": self.session_manager.current_session_id, "lease_seconds": lease_seconds},
+                    headers=headers,
+                )
+        except Exception:
+            pass
+
+    def _evaluate_turn_on_server(
+        self,
+        server_url: str,
+        creds: dict[str, Any],
+        execution_token: str,
+        attempt_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        turn_url = f"{server_url}/v1/attempts/{attempt_id}/turn"
+        headers = {
+            "Authorization": f"Bearer {creds['runner_token']}",
+            "X-Execution-Token": execution_token,
+        }
+        # Allow extra timeout since Server calls external LLM API
+        with httpx.Client(timeout=max(self.timeout_seconds, 90.0)) as client:
+            resp = client.post(turn_url, json=payload, headers=headers)
+            if resp.status_code == 404:
+                return None
+            if resp.status_code != 200:
+                raise ConnectionError(f"Evaluate turn failed ({resp.status_code}): {resp.text}")
+            return resp.json()
+
     def _complete_attempt_on_server(
         self,
         server_url: str,
@@ -269,24 +314,141 @@ class TaskExecutionWorker:
             command_argv=["execute", task_run_id],
         )
         if task_def.get("skill_snapshot", {}).get("source_path"):
-            from agent_cf_client.execution.local_skill import execute_local_skill
+            from agent_cf_client.execution.local_skill import execute_local_skill, file_inventory
+
+            orchestration_enabled = bool(task_def.get("orchestration_enabled", True)) and bool(
+                task_def.get("agent_snapshot")
+            )
+            waiting_ctx = assignment.get("waiting_context") or {}
+            human_reply = waiting_ctx.get("human_reply")
+            resume_sid = waiting_ctx.get("resume_session_id")
+            if resume_sid:
+                active_session_id = resume_sid
+            turn_number = int(waiting_ctx.get("prior_turns") or 0) + 1
+            prompt_override = human_reply if isinstance(human_reply, str) and human_reply.strip() else None
+
+            working_path = Path(task_def.get("working_directory", ""))
+            topic_dir_val = input_data.get("topic_directory")
+            inv_root = Path(topic_dir_val).resolve() if topic_dir_val and Path(topic_dir_val).is_dir() else (
+                working_path.resolve() if working_path.is_dir() else None
+            )
+            baseline_inv = file_inventory(inv_root) if inv_root is not None else None
 
             pid = 0
+            conversation_history: list[dict[str, Any]] = []
 
             def started(process_id):
                 nonlocal pid
                 pid = process_id
                 journal.record_started(pid=pid)
 
-            try:
-                result, metadata = execute_local_skill(
-                    adapter=adapter, task=task_def, input_data=input_data,
-                    runner_id=creds["runner_id"], log_dir=exec_dir, on_started=started,
+            while True:
+                try:
+                    result, metadata = execute_local_skill(
+                        adapter=adapter,
+                        task=task_def,
+                        input_data=input_data,
+                        runner_id=creds["runner_id"],
+                        log_dir=exec_dir,
+                        on_started=started,
+                        session_id=active_session_id,
+                        prompt_override=prompt_override,
+                        strict_output_check=not orchestration_enabled,
+                        baseline_inventory=baseline_inv,
+                    )
+                except (ValueError, OSError) as exc:
+                    result = RuntimeExecutionResult(
+                        success=False,
+                        exit_code=-1,
+                        error_code="local_skill_invalid",
+                        error_message=str(exc),
+                    )
+                    metadata = None
+
+                if result.session_id:
+                    active_session_id = result.session_id
+                    if session_mode == "shared_per_tool":
+                        self.run_tool_sessions[(run_id, tool_key)] = result.session_id
+
+                if not orchestration_enabled:
+                    break
+
+                self._renew_lease(server_url, creds, execution_token, attempt_id)
+                local_files = (metadata or {}).get("local_files") or []
+                try:
+                    decision = self._evaluate_turn_on_server(
+                        server_url,
+                        creds,
+                        execution_token,
+                        attempt_id,
+                        {
+                            "turn_number": turn_number,
+                            "output_text": result.output_text or "",
+                            "session_id": active_session_id,
+                            "exit_code": result.exit_code,
+                            "error_code": result.error_code,
+                            "error_message": result.error_message,
+                            "local_files": local_files,
+                            "conversation_history": conversation_history,
+                            "require_local_file": True,
+                        },
+                    )
+                except Exception:
+                    decision = None
+
+                if decision is None:
+                    if result.success and not local_files and metadata is not None:
+                        result = RuntimeExecutionResult(
+                            success=False,
+                            exit_code=result.exit_code,
+                            session_id=result.session_id,
+                            error_code="local_output_missing",
+                            error_message="Runtime chưa tạo/sửa file output thực tế trong thư mục chủ đề",
+                        )
+                    break
+
+                conversation_history.append({
+                    "turn": turn_number,
+                    "cli_output": (result.output_text or "")[-1500:],
+                    "agent_action": decision.get("action"),
+                    "agent_reply": decision.get("reply_message"),
+                })
+
+                action = decision.get("action")
+                if action == "reply":
+                    prompt_override = decision.get("reply_message") or "Tiếp tục"
+                    turn_number += 1
+                    continue
+                if action == "retry":
+                    prompt_override = None
+                    turn_number += 1
+                    continue
+                if action == "need_human":
+                    return {
+                        "task_run_id": task_run_id,
+                        "attempt_id": attempt_id,
+                        "outcome": "waiting_for_human",
+                        "question": decision.get("question_for_user"),
+                    }
+                if action == "done":
+                    if metadata is None:
+                        metadata = {}
+                    metadata["route"] = decision.get("route")
+                    metadata["agent_summary"] = decision.get("summary_vi")
+                    result.success = True
+                    break
+
+                analysis = decision.get("error_analysis") or decision.get("summary_vi") or result.error_message or "Local Skill failed"
+                result = RuntimeExecutionResult(
+                    success=False,
+                    exit_code=result.exit_code if result.exit_code is not None else 1,
+                    output_text=result.output_text,
                     session_id=active_session_id,
+                    error_code=result.error_code or "agent_rejected",
+                    error_message=analysis,
                 )
-            except (ValueError, OSError) as exc:
-                result = RuntimeExecutionResult(success=False, exit_code=-1, error_code="local_skill_invalid", error_message=str(exc))
-                metadata = None
+                break
+
             if result.success:
                 if session_mode == "shared_per_tool" and result.session_id:
                     self.run_tool_sessions[(run_id, tool_key)] = result.session_id
@@ -296,7 +458,8 @@ class TaskExecutionWorker:
             return self._complete_attempt_on_server(
                 server_url=server_url, creds=creds, execution_token=execution_token,
                 attempt_id=attempt_id, task_run_id=task_run_id, generation=generation,
-                outcome="succeeded" if result.success else "failed", exit_code=result.exit_code,
+                outcome="succeeded" if result.success else "failed",
+                exit_code=result.exit_code if result.exit_code is not None else -1,
                 output_payload=metadata,
                 error_payload=None if result.success else {"code": result.error_code, "message": result.error_message},
                 artifact_ids=[], launch_id=launch_id, pid=pid, journal=journal,

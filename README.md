@@ -2,7 +2,7 @@
 
 Khi không xóa được, Web nêu tên dữ liệu đang liên kết và cách xử lý, thay thông báo ID kỹ thuật; Project/Process/PC chỉ rõ lượt chạy hoặc PC đang chặn. Điều kiện bảo vệ xóa giữ nguyên. Xem [BASE-011](docs/development/tasks/base/010-deletion-feedback.md).
 
-Sidebar được tinh chỉnh với nhận diện CF phẳng, wordmark SVG, icon nét đồng nhất và phản hồi hover/nhấn ngắn; có focus bàn phím, mobile và giảm chuyển động. Tên menu và chức năng giữ nguyên. Xem [BASE-010](docs/development/tasks/base/009-sidebar-identity.md).
+Logo ở đầu sidebar dùng mẫu SVG chữ C mở ôm chữ F, có ô vuông tím và chữ Agent CF. Icon menu có nét đồng nhất, hỗ trợ focus bàn phím, mobile và giảm chuyển động. Xem [BASE-010](docs/development/tasks/base/009-sidebar-identity.md).
 
 Client 0.3.2 gửi lời gọi Skill trực tiếp theo mẫu hai dòng; ô Yêu cầu riêng nối lưu ý của bạn phía sau, không tự thêm quy trình ngoài Skill. Xem [RTM-011](docs/development/tasks/runtime/008-direct-skill-invocation.md).
 

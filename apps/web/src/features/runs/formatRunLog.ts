@@ -189,6 +189,38 @@ export function formatRunEventsToLogItems({
         break;
       }
 
+      case "agent_decision": {
+        const action = String(ev.data?.action || "").toLowerCase();
+        const agentName = String(ev.data?.agent_name || "Agent điều phối");
+        const turn = ev.data?.turn_number ? ` (Lượt ${ev.data.turn_number})` : "";
+        const summary = String(ev.data?.summary_vi || "").trim();
+        const route = ev.data?.route ? ` → nhánh "${ev.data.route}"` : "";
+        if (action === "done") {
+          level = "SUCCESS";
+          message = `${agentName}${turn}: Duyệt hoàn thành${route}${summary ? ` — ${summary}` : ""}`;
+        } else if (action === "reply") {
+          level = "INFO";
+          const replyMsg = String(ev.data?.reply_message || "").trim();
+          message = `${agentName}${turn}: Tự trả lời tiếp${replyMsg ? ` (“${replyMsg}”)` : ""}`;
+          if (summary) details.summary = summary;
+        } else if (action === "need_human") {
+          level = "WARN";
+          const q = String(ev.data?.question_for_user || summary || "Cần người dùng quyết định");
+          message = `${agentName}${turn}: Hỏi người dùng — ${q}`;
+          if (summary && summary !== q) details.summary = summary;
+        } else if (action === "retry") {
+          level = "WARN";
+          message = `${agentName}${turn}: Yêu cầu thử lại${summary ? ` — ${summary}` : ""}`;
+          if (ev.data?.error_analysis) details.errorText = String(ev.data.error_analysis);
+        } else {
+          level = "ERROR";
+          const analysis = String(ev.data?.error_analysis || summary || "Báo lỗi");
+          message = `${agentName}${turn}: Báo lỗi — ${analysis}`;
+          details.errorText = analysis;
+        }
+        break;
+      }
+
       case "run_succeeded": {
         level = "SUCCESS";
         message = "Lượt chạy hoàn thành thành công tất cả các bước!";

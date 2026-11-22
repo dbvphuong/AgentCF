@@ -25,6 +25,7 @@ def delete_process_history(conn, column, resource_id):
         ("engine_inbox", f"run_id IN ({runs})", (resource_id,)),
         ("engine_outbox", f"run_id IN ({runs})", (resource_id,)),
         ("human_decisions", f"run_id IN ({runs})", (resource_id,)),
+        ("agent_turn_decisions", f"run_id IN ({runs})", (resource_id,)),
         ("review_decisions", f"task_run_id IN ({tasks})", (resource_id,)),
         ("run_error_acknowledgments", f"run_id IN ({runs})", (resource_id,)),
         ("agent_token_usage", f"run_id IN ({runs})", (resource_id,)),

@@ -85,8 +85,127 @@ class AuthenticationError(ValueError):
 
 
 class RunRepository:
-    def __init__(self, database: Database) -> None:
+    def __init__(self, database: Database, orchestrator: Any | None = None) -> None:
         self.database = database
+        self.orchestrator = orchestrator
+
+    def _get_orchestrator(self):
+        if self.orchestrator is None:
+            from agent_cf_server.infrastructure.agents.orchestrator import AgentOrchestrator
+            self.orchestrator = AgentOrchestrator()
+        return self.orchestrator
+
+    @staticmethod
+    def _load_process_dependencies(connection, process_version_id: str) -> list[dict[str, Any]]:
+        pv = connection.execute(
+            "SELECT definition_json FROM process_versions WHERE id=?",
+            (process_version_id,),
+        ).fetchone()
+        if pv and pv["definition_json"]:
+            try:
+                deps = json.loads(pv["definition_json"]).get("dependencies", [])
+                if isinstance(deps, list):
+                    return deps
+            except Exception:
+                pass
+        return [
+            {"source_task_id": r["source_task_id"], "target_task_id": r["target_task_id"]}
+            for r in connection.execute(
+                "SELECT source_task_id, target_task_id FROM dependencies WHERE process_version_id=?",
+                (process_version_id,),
+            ).fetchall()
+        ]
+
+    def _advance_dag(self, connection, run_id: str, process_version_id: str, at: str) -> None:
+        deps = self._load_process_dependencies(connection, process_version_id)
+        incoming: dict[str, list[dict[str, Any]]] = {}
+        for d in deps:
+            incoming.setdefault(d["target_task_id"], []).append(d)
+
+        while True:
+            rows = connection.execute(
+                "SELECT id, task_id, status, output_json FROM task_runs WHERE run_id=?",
+                (run_id,),
+            ).fetchall()
+            by_task = {}
+            for r in rows:
+                out = None
+                if r["output_json"]:
+                    try:
+                        out = json.loads(r["output_json"])
+                    except Exception:
+                        out = None
+                by_task[r["task_id"]] = {"id": r["id"], "status": r["status"], "output": out}
+
+            changed = False
+            for task_id, tinfo in by_task.items():
+                if tinfo["status"] != "pending":
+                    continue
+                in_edges = incoming.get(task_id, [])
+                if not in_edges:
+                    continue
+                impossible = False
+                all_satisfied = True
+                for edge in in_edges:
+                    src = by_task.get(edge["source_task_id"])
+                    if not src:
+                        impossible = True
+                        break
+                    src_status = src["status"]
+                    cond = edge.get("condition_type") or "always"
+                    src_route = src["output"].get("route") if isinstance(src["output"], dict) else None
+                    if src_status in ("skipped", "cancelled"):
+                        impossible = True
+                        break
+                    if cond == "always":
+                        if src_status == "failed":
+                            impossible = True
+                            break
+                        if src_status != "succeeded":
+                            all_satisfied = False
+                    elif cond == "route":
+                        if src_status == "failed":
+                            impossible = True
+                            break
+                        if src_status == "succeeded":
+                            if src_route != edge.get("route_key"):
+                                impossible = True
+                                break
+                        else:
+                            all_satisfied = False
+                    elif cond == "on_fail":
+                        if src_status == "succeeded":
+                            impossible = True
+                            break
+                        if src_status != "failed":
+                            all_satisfied = False
+                if impossible:
+                    connection.execute(
+                        "UPDATE task_runs SET status='skipped' WHERE id=? AND status='pending'",
+                        (tinfo["id"],),
+                    )
+                    changed = True
+                elif all_satisfied:
+                    connection.execute(
+                        "UPDATE task_runs SET status='queued', queued_at=? WHERE id=? AND status='pending'",
+                        (at, tinfo["id"]),
+                    )
+                    changed = True
+            if not changed:
+                break
+
+    def _is_run_succeeded(self, connection, process_version_id: str, all_tasks: list[Any]) -> bool:
+        if any(t["status"] == "cancelled" for t in all_tasks):
+            return False
+        failed_ids = {t["task_id"] for t in all_tasks if t["status"] == "failed"}
+        if failed_ids:
+            deps = self._load_process_dependencies(connection, process_version_id)
+            handled_by_on_fail = {
+                d["source_task_id"] for d in deps if (d.get("condition_type") or "always") == "on_fail"
+            }
+            if not failed_ids.issubset(handled_by_on_fail):
+                return False
+        return any(t["status"] == "succeeded" for t in all_tasks)
 
     def run_context(self, version_id):
         from agent_cf_server.domain.processes.topic import topic_configuration
@@ -230,8 +349,21 @@ class RunRepository:
             for name in ("input", "output", "error"):
                 val = tr_dict.pop(name + "_json", None)
                 tr_dict[name] = json.loads(val) if val is not None else None
+            wctx = tr_dict.pop("waiting_context_json", None)
+            tr_dict["waiting_context"] = json.loads(wctx) if wctx is not None else None
             task_runs.append(tr_dict)
         result["task_runs"] = task_runs
+
+        turn_decisions = []
+        for td in connection.execute(
+            "SELECT * FROM agent_turn_decisions WHERE run_id=? ORDER BY created_at ASC, turn_number ASC",
+            (run_id,),
+        ).fetchall():
+            td_dict = dict(td)
+            opts = td_dict.pop("suggested_options_json", "[]")
+            td_dict["suggested_options"] = json.loads(opts) if opts else []
+            turn_decisions.append(td_dict)
+        result["turn_decisions"] = turn_decisions
 
         artifacts = []
         for art in connection.execute(
@@ -617,6 +749,7 @@ class RunRepository:
                     except Exception:
                         pass
 
+            waiting_ctx = json.loads(tr["waiting_context_json"]) if tr["waiting_context_json"] else None
             assignment = {
                 "run_id": tr["run_id"],
                 "task_run_id": task_run_id,
@@ -635,6 +768,7 @@ class RunRepository:
                 "renew_interval_seconds": 15,
                 "session_mode": session_mode,
                 "tool_session_id": tool_session_id,
+                "waiting_context": waiting_ctx,
             }
             connection.execute(
                 "INSERT INTO receipts(principal_id,operation,resource_id,request_key,request_sha256,response_json,created_at) "
@@ -739,34 +873,7 @@ class RunRepository:
                  encode_json(redact_secrets(audit_data)), at),
             )
 
-            if outcome == "succeeded":
-                pending_tasks = connection.execute(
-                    "SELECT tr.id, tr.task_id, tr.process_version_id FROM task_runs tr "
-                    "WHERE tr.run_id=? AND tr.status='pending'",
-                    (grant["run_id"],),
-                ).fetchall()
-                for pt in pending_tasks:
-                    deps = connection.execute(
-                        "SELECT source_task_id FROM dependencies WHERE process_version_id=? AND target_task_id=?",
-                        (pt["process_version_id"], pt["task_id"]),
-                    ).fetchall()
-                    if deps:
-                        source_ids = [d["source_task_id"] for d in deps]
-                        placeholders = ",".join("?" for _ in source_ids)
-                        succeeded_count = connection.execute(
-                            f"SELECT COUNT(*) FROM task_runs WHERE run_id=? AND task_id IN ({placeholders}) AND status='succeeded'",
-                            [grant["run_id"]] + source_ids,
-                        ).fetchone()[0]
-                        if succeeded_count == len(source_ids):
-                            connection.execute(
-                                "UPDATE task_runs SET status='queued', queued_at=? WHERE id=?",
-                                (at, pt["id"]),
-                            )
-            elif outcome in ("failed", "cancelled"):
-                connection.execute(
-                    "UPDATE task_runs SET status='skipped' WHERE run_id=? AND status='pending'",
-                    (grant["run_id"],),
-                )
+            self._advance_dag(connection, grant["run_id"], grant["process_version_id"], at)
 
             all_tasks = connection.execute(
                 "SELECT task_id, status, output_json, error_json FROM task_runs WHERE run_id=?",
@@ -774,7 +881,7 @@ class RunRepository:
             ).fetchall()
             all_terminal = all(t["status"] in ("succeeded", "failed", "skipped", "cancelled") for t in all_tasks)
             if all_terminal:
-                all_succeeded = all(t["status"] == "succeeded" for t in all_tasks)
+                all_succeeded = self._is_run_succeeded(connection, grant["process_version_id"], all_tasks)
                 if all_succeeded:
                     agg_output = {}
                     for t in all_tasks:
@@ -1161,35 +1268,21 @@ class RunRepository:
 
             if decision in ("proceed", "approved", "continue"):
                 if target_tr:
+                    wctx = json.loads(target_tr["waiting_context_json"]) if target_tr["waiting_context_json"] else None
                     new_input = input_data if input_data is not None else (json.loads(target_tr["input_json"]) if target_tr["input_json"] else None)
-                    if target_tr["waiting_for"] == "human_approval" or target_tr["status"] == "running":
+                    if wctx and decision != "approved":
+                        wctx["human_reply"] = feedback or decision
+                        wctx["resume_session_id"] = wctx.get("session_id")
                         connection.execute(
-                            "UPDATE task_runs SET status='succeeded', waiting_for=NULL, attention_reason=NULL, output_json=? WHERE id=?",
+                            "UPDATE task_runs SET status='queued', waiting_for=NULL, attention_reason=NULL, waiting_context_json=?, input_json=?, queued_at=? WHERE id=?",
+                            (encode_json(wctx), encode_json(new_input) if new_input is not None else None, at, target_tr["id"]),
+                        )
+                    elif target_tr["waiting_for"] == "human_approval" or target_tr["status"] == "running" or decision == "approved":
+                        connection.execute(
+                            "UPDATE task_runs SET status='succeeded', waiting_for=NULL, attention_reason=NULL, waiting_context_json=NULL, output_json=? WHERE id=?",
                             (encode_json({"decision": decision, "feedback": feedback, "human_input": input_data}), target_tr["id"]),
                         )
-                        # Queue eligible downstream tasks
-                        pending_tasks = connection.execute(
-                            "SELECT tr.id, tr.task_id, tr.process_version_id FROM task_runs tr "
-                            "WHERE tr.run_id=? AND tr.status='pending'",
-                            (run_id,),
-                        ).fetchall()
-                        for pt in pending_tasks:
-                            deps = connection.execute(
-                                "SELECT source_task_id FROM dependencies WHERE process_version_id=? AND target_task_id=?",
-                                (pt["process_version_id"], pt["task_id"]),
-                            ).fetchall()
-                            if deps:
-                                source_ids = [d["source_task_id"] for d in deps]
-                                placeholders = ",".join("?" for _ in source_ids)
-                                succ_count = connection.execute(
-                                    f"SELECT COUNT(*) FROM task_runs WHERE run_id=? AND task_id IN ({placeholders}) AND status='succeeded'",
-                                    [run_id] + source_ids,
-                                ).fetchone()[0]
-                                if succ_count == len(source_ids):
-                                    connection.execute(
-                                        "UPDATE task_runs SET status='queued', queued_at=? WHERE id=?",
-                                        (at, pt["id"]),
-                                    )
+                        self._advance_dag(connection, run_id, target_tr["process_version_id"], at)
                     else:
                         connection.execute(
                             "UPDATE task_runs SET status='queued', waiting_for=NULL, attention_reason=NULL, input_json=?, queued_at=? WHERE id=?",
@@ -1222,3 +1315,253 @@ class RunRepository:
                 (principal_id, run_id, request_key, request_sha256, encode_json(res), at),
             )
             return res
+
+    def evaluate_attempt_turn(
+        self,
+        *,
+        attempt_id: str,
+        execution_token: str,
+        turn_number: int,
+        output_text: str,
+        session_id: str | None,
+        exit_code: int | None,
+        error_code: str | None,
+        error_message: str | None,
+        local_files: list[dict[str, Any]],
+        conversation_history: list[dict[str, Any]],
+        require_local_file: bool = True,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        at = now.isoformat().replace("+00:00", "Z")
+        token_hash = hashlib.sha256(execution_token.encode("utf-8")).hexdigest()
+
+        with self.database.connect(read_only=True) as connection:
+            grant = connection.execute(
+                "SELECT g.*, a.run_id, a.task_run_id, a.status as attempt_status, "
+                "tr.process_version_id, tr.task_id, pr.input_json as run_input_json, "
+                "t.definition_json as task_def_json "
+                "FROM execution_grants g "
+                "JOIN attempts a ON a.id=g.attempt_id "
+                "JOIN task_runs tr ON tr.id=a.task_run_id "
+                "JOIN process_runs pr ON pr.id=a.run_id "
+                "JOIN tasks t ON t.process_version_id=tr.process_version_id AND t.id=tr.task_id "
+                "WHERE g.attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if grant is None:
+                raise KeyError(attempt_id)
+            if grant["token_hash"] != token_hash:
+                raise AuthenticationError("Invalid execution token")
+            if grant["attempt_status"] not in ("claimed", "running"):
+                raise ConflictError("attempt_already_settled")
+            if grant["revoked_at"] is not None:
+                raise ConflictError("stale_execution: grant has been revoked")
+            if grant["expires_at"] < at:
+                raise ConflictError("stale_execution: lease has expired")
+
+            task_def = json.loads(grant["task_def_json"])
+            run_input = json.loads(grant["run_input_json"]) if grant["run_input_json"] else {}
+            agent_snap = dict(task_def.get("agent_snapshot") or {})
+            agent_id = agent_snap.get("id") or task_def.get("agent_id")
+            if not agent_id:
+                raise ConflictError("Bước này chưa gán Agent điều phối.")
+
+            agent_row = connection.execute("SELECT * FROM agents WHERE id=?", (agent_id,)).fetchone()
+            agent_cfg = dict(agent_row) if agent_row else agent_snap
+            if agent_row:
+                agent_cfg["allow_reply"] = bool(agent_row["allow_reply"])
+                agent_cfg["allow_retry"] = bool(agent_row["allow_retry"])
+                agent_cfg["allow_need_human"] = bool(agent_row["allow_need_human"])
+                agent_cfg["max_turns"] = int(agent_row["max_turns"])
+            if not str(agent_cfg.get("instructions") or "").strip():
+                tpl = connection.execute(
+                    "SELECT prompt_text FROM agent_templates ORDER BY is_default DESC, created_at ASC LIMIT 1"
+                ).fetchone()
+                if tpl:
+                    agent_cfg["instructions"] = tpl["prompt_text"]
+
+            model_id = agent_cfg.get("model_id") or agent_snap.get("model_id")
+            model_row = connection.execute("SELECT * FROM models WHERE id=?", (model_id,)).fetchone()
+            if not model_row:
+                raise ConflictError(f"Không tìm thấy Model API ({model_id}) cho Agent điều phối.")
+            model_cfg = dict(model_row)
+            provider_row = connection.execute(
+                "SELECT * FROM providers WHERE id=?",
+                (model_cfg["provider_id"],),
+            ).fetchone()
+            if not provider_row:
+                raise ConflictError("Không tìm thấy Provider cho Model API của Agent.")
+            provider_cfg = dict(provider_row)
+            provider_cfg["api_key"] = provider_cfg.get("api_key_ciphertext")
+
+            deps = self._load_process_dependencies(connection, grant["process_version_id"])
+            available_routes = [
+                {
+                    "route_key": str(d.get("route_key") or "").strip(),
+                    "label": str(d.get("condition_label") or d.get("route_key") or "").strip(),
+                    "target_task_id": str(d.get("target_task_id") or ""),
+                }
+                for d in deps
+                if d.get("source_task_id") == grant["task_id"]
+                and (d.get("condition_type") or "always") == "route"
+                and str(d.get("route_key") or "").strip()
+            ]
+
+        decision = self._get_orchestrator().evaluate_turn(
+            provider=provider_cfg,
+            model=model_cfg,
+            agent=agent_cfg,
+            task_def=task_def,
+            run_input=run_input,
+            available_routes=available_routes,
+            turn_number=turn_number,
+            output_text=output_text,
+            local_files=local_files,
+            exit_code=exit_code,
+            error_code=error_code,
+            error_message=error_message,
+            conversation_history=conversation_history,
+            require_local_file=require_local_file,
+        )
+
+        record_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        with self.database.transaction() as connection:
+            check_grant = connection.execute(
+                "SELECT g.*, a.status as attempt_status FROM execution_grants g "
+                "JOIN attempts a ON a.id=g.attempt_id WHERE g.attempt_id=?",
+                (attempt_id,),
+            ).fetchone()
+            if check_grant is None or check_grant["token_hash"] != token_hash:
+                raise AuthenticationError("Invalid execution token")
+            if check_grant["revoked_at"] is not None or check_grant["attempt_status"] not in ("claimed", "running"):
+                raise ConflictError("stale_execution: attempt already settled")
+
+            dec_id = str(uuid4())
+            connection.execute(
+                "INSERT INTO agent_turn_decisions "
+                "(id, run_id, task_run_id, attempt_id, agent_id, turn_number, action, reply_message, route, "
+                "summary_vi, question_for_user, suggested_options_json, error_analysis, raw_output_preview, "
+                "prompt_tokens, completion_tokens, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    dec_id,
+                    grant["run_id"],
+                    grant["task_run_id"],
+                    attempt_id,
+                    agent_id,
+                    turn_number,
+                    decision["action"],
+                    decision.get("reply_message"),
+                    decision.get("route"),
+                    decision.get("summary_vi") or "",
+                    decision.get("question_for_user"),
+                    encode_json(decision.get("suggested_options") or []),
+                    decision.get("error_analysis"),
+                    (output_text or "")[:1000],
+                    int(decision.get("prompt_tokens") or 0),
+                    int(decision.get("completion_tokens") or 0),
+                    record_at,
+                ),
+            )
+            total_tokens = int(decision.get("total_tokens") or 0)
+            if total_tokens > 0:
+                connection.execute(
+                    "INSERT INTO agent_token_usage (id, agent_id, run_id, task_run_id, prompt_tokens, completion_tokens, total_tokens, recorded_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        str(uuid4()),
+                        agent_id,
+                        grant["run_id"],
+                        grant["task_run_id"],
+                        int(decision.get("prompt_tokens") or 0),
+                        int(decision.get("completion_tokens") or 0),
+                        total_tokens,
+                        record_at,
+                    ),
+                )
+
+            seq = connection.execute(
+                "SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?",
+                (grant["run_id"],),
+            ).fetchone()[0]
+            connection.execute(
+                "INSERT INTO run_events(id,run_id,sequence,event_type,task_run_id,attempt_id,data_json,recorded_at) "
+                "VALUES (?,?,?,'agent_decision',?,?,?,?)",
+                (
+                    str(uuid4()),
+                    grant["run_id"],
+                    seq,
+                    grant["task_run_id"],
+                    attempt_id,
+                    encode_json({
+                        "turn_number": turn_number,
+                        "agent_id": agent_id,
+                        "agent_name": agent_cfg.get("name") or "Agent điều phối",
+                        "action": decision["action"],
+                        "reply_message": decision.get("reply_message"),
+                        "route": decision.get("route"),
+                        "summary_vi": decision.get("summary_vi"),
+                        "question_for_user": decision.get("question_for_user"),
+                        "suggested_options": decision.get("suggested_options") or [],
+                        "error_analysis": decision.get("error_analysis"),
+                    }),
+                    record_at,
+                ),
+            )
+
+            if decision["action"] == "need_human":
+                question = decision.get("question_for_user") or decision.get("summary_vi") or "Cần người dùng xác nhận."
+                wctx = {
+                    "session_id": session_id,
+                    "turn_number": turn_number,
+                    "question": question,
+                    "suggested_options": decision.get("suggested_options") or [],
+                    "summary_vi": decision.get("summary_vi") or "",
+                    "local_files": local_files,
+                    "last_output_preview": (output_text or "")[-1200:],
+                }
+                connection.execute(
+                    "UPDATE execution_grants SET revoked_at=? WHERE attempt_id=?",
+                    (record_at, attempt_id),
+                )
+                connection.execute(
+                    "UPDATE attempts SET status='cancelled', ended_at=?, output_json=? WHERE id=?",
+                    (
+                        record_at,
+                        encode_json({"session_id": session_id, "local_files": local_files, "summary": output_text}),
+                        attempt_id,
+                    ),
+                )
+                connection.execute(
+                    "UPDATE task_runs SET waiting_for='human_input', attention_reason=?, waiting_context_json=? WHERE id=?",
+                    (question, encode_json(wctx), grant["task_run_id"]),
+                )
+                connection.execute(
+                    "UPDATE process_runs SET attention_reason=?, revision=revision+1 WHERE id=?",
+                    (question, grant["run_id"]),
+                )
+                seq2 = seq + 1
+                connection.execute(
+                    "INSERT INTO run_events(id,run_id,sequence,event_type,task_run_id,attempt_id,data_json,recorded_at) "
+                    "VALUES (?,?,?,'task_waiting_for_input',?,?,?,?)",
+                    (
+                        str(uuid4()),
+                        grant["run_id"],
+                        seq2,
+                        grant["task_run_id"],
+                        attempt_id,
+                        encode_json({
+                            "waiting_for": "human_input",
+                            "reason": question,
+                            "suggested_options": decision.get("suggested_options") or [],
+                        }),
+                        record_at,
+                    ),
+                )
+
+        return {
+            **decision,
+            "decision_id": dec_id,
+            "turn_number": turn_number,
+            "max_turns": int(agent_cfg.get("max_turns") or 10),
+        }

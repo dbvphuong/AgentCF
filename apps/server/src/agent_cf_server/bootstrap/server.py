@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from agent_cf_server.api.agents import agents_router
+from agent_cf_server.api.agents import agent_templates_router, agents_router
 from agent_cf_server.api.health import health_router
 from agent_cf_server.api.overview import overview_router
 from agent_cf_server.api.projects import projects_router
@@ -18,6 +18,7 @@ from agent_cf_server.api.settings import settings_router
 from agent_cf_server.api.skills import skills_router
 from agent_cf_server.bootstrap.config import ServerSettings, load_settings
 from agent_cf_server.infrastructure.agents.repository import AgentRepository
+from agent_cf_server.infrastructure.agents.template_repository import AgentTemplateRepository
 from agent_cf_server.infrastructure.agents.review_repository import ReviewRepository
 from agent_cf_server.infrastructure.overview.repository import OverviewRepository
 from agent_cf_server.infrastructure.persistence.database import Database
@@ -39,6 +40,7 @@ def create_app(settings: ServerSettings | None = None) -> FastAPI:
     settings_repo = SettingsRepository(database)
     skills_repo = SkillRepository(database)
     agents_repo = AgentRepository(database)
+    agent_templates_repo = AgentTemplateRepository(database)
     reviews_repo = ReviewRepository(database)
     robots_repo = RobotRepository(database)
     runners_repo = RunnerRepository(database)
@@ -62,6 +64,7 @@ def create_app(settings: ServerSettings | None = None) -> FastAPI:
     app.include_router(ai_tool_models_router(AiToolModelRepository(database)))
     app.include_router(skills_router(skills_repo))
     app.include_router(agents_router(agents_repo))
+    app.include_router(agent_templates_router(agent_templates_repo))
     app.include_router(reviews_router(reviews_repo))
     app.include_router(robots_router(robots_repo))
     app.include_router(runners_router(runners_repo))
@@ -71,6 +74,7 @@ def create_app(settings: ServerSettings | None = None) -> FastAPI:
     app.state.settings_repo = settings_repo
     app.state.skills_repo = skills_repo
     app.state.agents_repo = agents_repo
+    app.state.agent_templates_repo = agent_templates_repo
     app.state.reviews_repo = reviews_repo
     app.state.robots_repo = robots_repo
     app.state.runners_repo = runners_repo

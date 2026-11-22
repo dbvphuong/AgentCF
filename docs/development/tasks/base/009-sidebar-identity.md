@@ -15,3 +15,8 @@
     - Từ root: `node apps/web/tests/browser/sidebar.cjs` với Vite `5173`, Edge headless CDP `9371`: đạt cả tám menu, route con, hover/nhấn không xê dịch, Tab/Enter/focus, command palette, tablet 800 px, mobile 390 px và Escape, reduced-motion; **0 lỗi JavaScript, 0 mutation API**. Fixture chặn mọi API, không dùng dữ liệu thật.
     - Đã xem ảnh `runtime/sidebar-review/{sidebar,desktop,mobile}.png`; report `runtime/sidebar-review/browser.json`. Artifacts kiểm chứng nằm trong thư mục runtime được ignore.
   - Giới hạn: kiểm chứng giao diện trên Edge tại máy này; không tuyên bố nghiệm thu mọi trình duyệt hoặc toàn bộ sản phẩm, không gán điểm UX khách quan từ test tự động. API/schema/runtime thực thi không đổi.
+
+## Cập nhật mẫu logo sidebar ngày 2026-11-23
+
+- Thay cụm logo đầu sidebar bằng SVG `apps/web/public/logos/agent-cf-sidebar.svg` theo mẫu người dùng chọn. C mở ôm F, có ô vuông tím và chữ Agent CF. Tám icon menu, favicon và đích liên kết Overview giữ nguyên.
+- Trong `apps/web`, `npm.cmd run build` đạt (gồm TypeScript) và `npm.cmd test` đạt **28 tests**. `node apps/web/tests/browser/sidebar.cjs` từ root đạt trên Edge với fixture, kiểm tra SVG tải được, đích Overview, tám mục menu, tablet, mobile và reduced-motion. Báo cáo và ảnh nằm tại `runtime/sidebar-logo-review/`.

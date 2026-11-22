@@ -17,6 +17,32 @@ export type TaskRunStatus =
   | "skipped"
   | "cancelled";
 
+export interface WaitingContext {
+  session_id?: string | null;
+  turn_number?: number;
+  question?: string;
+  suggested_options?: string[];
+  summary_vi?: string;
+}
+
+export interface AgentTurnDecision {
+  id: string;
+  task_run_id: string;
+  attempt_id: string;
+  agent_id: string;
+  turn_number: number;
+  action: "done" | "reply" | "need_human" | "retry" | "fail";
+  reply_message?: string | null;
+  route?: string | null;
+  summary_vi: string;
+  question_for_user?: string | null;
+  suggested_options?: string[];
+  error_analysis?: string | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  created_at: string;
+}
+
 export interface TaskRun {
   id: string;
   run_id: string;
@@ -30,6 +56,7 @@ export interface TaskRun {
   error?: Record<string, unknown> | null;
   waiting_for?: string | null;
   attention_reason?: string | null;
+  waiting_context?: WaitingContext | null;
 }
 
 export interface ArtifactRef {
@@ -63,6 +90,7 @@ export interface Run {
   ended_at?: string | null;
   queue_deadline_at: string;
   task_runs: TaskRun[];
+  turn_decisions?: AgentTurnDecision[];
   artifacts?: ArtifactRef[];
 }
 

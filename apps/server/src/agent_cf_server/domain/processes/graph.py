@@ -26,6 +26,13 @@ def validate_graph(definition: dict[str, Any]) -> None:
             raise ValueError(f"Dependency không hợp lệ: {source} → {target}")
         if (source, target) in edges:
             raise ValueError("Dependency bị trùng")
+        condition_type = edge.get("condition_type") or "always"
+        if condition_type not in ("always", "route", "on_fail"):
+            raise ValueError(f"Điều kiện dây nối không hợp lệ: {condition_type}")
+        if condition_type == "route":
+            route_key = edge.get("route_key")
+            if not isinstance(route_key, str) or not route_key.strip():
+                raise ValueError(f"Dây nối theo nhánh ({source} → {target}) cần tên nhánh (route_key)")
         edges.add((source, target))
         parents[target].add(source)
     ancestors: dict[str, set[str]] = {}

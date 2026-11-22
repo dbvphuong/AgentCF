@@ -763,6 +763,15 @@ export function ProcessEditor({
                       const eX = b.x - 2;
                       const eY = b.y + 70;
                       const edgePathD = buildPathD(sX, sY, eX, eY);
+                      const condType = edge.condition_type || "always";
+                      const edgeLabel =
+                        condType === "on_fail"
+                          ? "Khi lỗi"
+                          : condType === "route"
+                            ? (edge.condition_label || edge.route_key || "Nhánh")
+                            : "";
+                      const midX = (sX + eX) / 2;
+                      const midY = (sY + eY) / 2;
                       return (
                         <g
                           key={i}
@@ -774,7 +783,7 @@ export function ProcessEditor({
                               source_task_id: edge.source_task_id,
                               target_task_id: edge.target_task_id,
                             });
-                            setMessage("Dây nối đang được chọn. Nhấn phím DEL để xóa.");
+                            setMessage("Dây nối đang được chọn. Sửa điều kiện bên phải hoặc nhấn DEL để xóa.");
                           }}
                         >
                           <path
@@ -785,11 +794,33 @@ export function ProcessEditor({
                             style={{ cursor: "pointer" }}
                           />
                           <path
-                            className={`dependency-edge ${isSelectedEdge ? "selected-edge" : ""}`}
+                            className={`dependency-edge ${isSelectedEdge ? "selected-edge" : ""} ${condType === "on_fail" ? "edge-on-fail" : ""}`}
                             markerEnd={isSelectedEdge ? "url(#arrow-selected)" : "url(#arrow-dependency)"}
                             d={edgePathD}
                           />
-                          <title>Bấm để chọn dây này (sau đó nhấn phím DEL để xóa)</title>
+                          {edgeLabel && (
+                            <g transform={`translate(${midX}, ${midY})`} style={{ cursor: "pointer" }}>
+                              <rect
+                                x={-Math.min(72, Math.max(28, edgeLabel.length * 4 + 10))}
+                                y={-11}
+                                width={Math.min(144, Math.max(56, edgeLabel.length * 8 + 20))}
+                                height={22}
+                                rx={11}
+                                fill={condType === "on_fail" ? "#fdf0f2" : "#f7f4fa"}
+                                stroke={condType === "on_fail" ? "#f9cdd5" : "#cbbdde"}
+                              />
+                              <text
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontSize={11}
+                                fontWeight={600}
+                                fill={condType === "on_fail" ? "#a8223f" : "#554474"}
+                              >
+                                {edgeLabel.length > 18 ? edgeLabel.slice(0, 17) + "…" : edgeLabel}
+                              </text>
+                            </g>
+                          )}
+                          <title>Bấm để chọn dây này (cấu hình rẽ nhánh hoặc nhấn DEL để xóa)</title>
                         </g>
                       );
                     })}
@@ -967,44 +998,103 @@ export function ProcessEditor({
                     ? "▶ Start (Khởi đầu quy trình)"
                     : (selectedNode?.name ?? "Cấu hình node")}
                 </h3>
-                {selectedEdge ? (
-                  <>
-                    <dl className="detail-grid">
-                      <div>
-                        <dt>Bước nguồn</dt>
-                        <dd>{graph.tasks.find((t: RecordData) => t.id === selectedEdge.source_task_id)?.name || selectedEdge.source_task_id}</dd>
-                      </div>
-                      <div>
-                        <dt>Bước đích</dt>
-                        <dd>{graph.tasks.find((t: RecordData) => t.id === selectedEdge.target_task_id)?.name || selectedEdge.target_task_id}</dd>
-                      </div>
-                      <div>
-                        <dt>Thao tác nhanh</dt>
-                        <dd>Nhấn phím <code>DEL</code> hoặc <code>Backspace</code> trên bàn phím để xóa dây này.</dd>
-                      </div>
-                    </dl>
-                    {editable && (
-                      <div className="row-actions" style={{ marginTop: 12 }}>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          onClick={() => {
-                            commitChange({
-                              ...graph,
-                              dependencies: graph.dependencies.filter(
-                                (d: RecordData) =>
-                                  !(d.source_task_id === selectedEdge.source_task_id && d.target_task_id === selectedEdge.target_task_id),
-                              ),
-                            }, "Đã xóa dây nối.");
-                            setSelectedEdge(null);
-                          }}
-                        >
-                          Xóa dây này
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : selected === "__start__" ? (
+                {selectedEdge ? (() => {
+                  const edgeObj = graph.dependencies.find(
+                    (d: RecordData) =>
+                      d.source_task_id === selectedEdge.source_task_id &&
+                      d.target_task_id === selectedEdge.target_task_id,
+                  );
+                  const condType = edgeObj?.condition_type || "always";
+                  const updateEdge = (patch: RecordData) => {
+                    commitChange({
+                      ...graph,
+                      dependencies: graph.dependencies.map((d: RecordData) =>
+                        d.source_task_id === selectedEdge.source_task_id &&
+                        d.target_task_id === selectedEdge.target_task_id
+                          ? { ...d, ...patch }
+                          : d,
+                      ),
+                    });
+                  };
+                  return (
+                    <>
+                      <dl className="detail-grid">
+                        <div>
+                          <dt>Bước nguồn</dt>
+                          <dd>{graph.tasks.find((t: RecordData) => t.id === selectedEdge.source_task_id)?.name || selectedEdge.source_task_id}</dd>
+                        </div>
+                        <div>
+                          <dt>Bước đích</dt>
+                          <dd>{graph.tasks.find((t: RecordData) => t.id === selectedEdge.target_task_id)?.name || selectedEdge.target_task_id}</dd>
+                        </div>
+                      </dl>
+                      {editable && edgeObj && (
+                        <div className="edge-condition-form">
+                          <div className="form-group">
+                            <label htmlFor="edge-cond-type">Điều kiện chạy bước đích</label>
+                            <select
+                              id="edge-cond-type"
+                              value={condType}
+                              onChange={(e) => {
+                                const nextType = e.target.value;
+                                updateEdge({
+                                  condition_type: nextType,
+                                  route_key: nextType === "route" ? (edgeObj.route_key || "nhanh_1") : undefined,
+                                });
+                              }}
+                            >
+                              <option value="always">Luôn chạy khi bước nguồn xong</option>
+                              <option value="route">Theo nhánh Agent chọn</option>
+                              <option value="on_fail">Khi bước nguồn lỗi</option>
+                            </select>
+                          </div>
+                          {condType === "route" && (
+                            <>
+                              <div className="form-group">
+                                <label htmlFor="edge-route-key">Mã nhánh *</label>
+                                <input
+                                  id="edge-route-key"
+                                  placeholder="vd: dat_chuan, viet_lai"
+                                  value={edgeObj.route_key ?? ""}
+                                  onChange={(e) => updateEdge({ route_key: e.target.value })}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label htmlFor="edge-cond-label">Mô tả khi nào chọn nhánh này</label>
+                                <input
+                                  id="edge-cond-label"
+                                  placeholder="vd: Bài viết đã đạt chuẩn"
+                                  value={edgeObj.condition_label ?? ""}
+                                  onChange={(e) => updateEdge({ condition_label: e.target.value })}
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {editable && (
+                        <div className="row-actions" style={{ marginTop: 12 }}>
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={() => {
+                              commitChange({
+                                ...graph,
+                                dependencies: graph.dependencies.filter(
+                                  (d: RecordData) =>
+                                    !(d.source_task_id === selectedEdge.source_task_id && d.target_task_id === selectedEdge.target_task_id),
+                                ),
+                              }, "Đã xóa dây nối.");
+                              setSelectedEdge(null);
+                            }}
+                          >
+                            Xóa dây này
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : selected === "__start__" ? (
                   <>
                     <dl className="detail-grid">
                       <div>
@@ -1228,6 +1318,8 @@ export function ProcessEditor({
               delete task.node_model_id;
               delete task.node_reasoning_effort;
               if (kind === "agent") {
+                task.orchestration_enabled = data.orchestration_mode !== "off";
+                delete task.orchestration_mode;
                 if (!task.runner_id) delete task.runner_id;
                 delete task.working_directory;
               }
