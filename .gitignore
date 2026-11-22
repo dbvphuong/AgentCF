@@ -37,7 +37,6 @@ pnpm-debug.log*
 
 # Local runtime data, logs and artifacts
 /runtime/
-runtime/
 /artifacts/
 artifacts/
 logs/

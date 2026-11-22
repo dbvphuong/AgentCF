@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { formatRunEventsToLogItems } from "../../src/features/runs/formatRunLog.ts";
 
 test("downloadArtifactUrl constructs correct path without local traversal", async () => {
   const { downloadArtifactUrl } = await import("../../src/features/runs/api.js").catch(async () => {
@@ -30,29 +31,53 @@ test("continueRun constructs correct URL with escaping", () => {
 });
 
 test("structured log translation categorizes run events clearly", () => {
-  // Test event mapping logic
+  const baseRun = {
+    id: "run-1",
+    workspace_id: "ws-1",
+    project_id: "p-1",
+    process_id: "proc-1",
+    process_version_id: "ver-1",
+    snapshot_sha256: "a".repeat(64),
+    revision: 1,
+    status: "failed",
+    input: { topic: "Einstein" },
+    error: { message: "One or more tasks failed" },
+    created_at: "2026-11-22T05:00:00Z",
+    queue_deadline_at: "2026-11-22T05:05:00Z",
+    task_runs: [
+      {
+        id: "tr-1",
+        run_id: "run-1",
+        process_version_id: "ver-1",
+        task_id: "t-1",
+        status: "failed",
+        generation: 1,
+        error: { code: "local_output_missing", message: "Runtime chưa tạo/sửa file output" },
+      },
+    ],
+  };
+  const proc = {
+    id: "proc-1",
+    name: "Demo",
+    versions: [{ id: "ver-1", definition: { tasks: [{ id: "t-1", name: "Tạo cốt truyện" }] } }],
+  };
   const events = [
-    { event_type: "run_created", expected_level: "INFO" },
-    { event_type: "task_claimed", expected_level: "INFO" },
-    { event_type: "task_waiting_for_input", expected_level: "WARN" },
-    { event_type: "task_completed", outcome: "succeeded", expected_level: "SUCCESS" },
-    { event_type: "task_completed", outcome: "failed", expected_level: "ERROR" },
-    { event_type: "run_succeeded", expected_level: "SUCCESS" },
-    { event_type: "run_failed", expected_level: "ERROR" },
-    { event_type: "run_cancelled", expected_level: "WARN" },
+    { id: "e1", run_id: "run-1", sequence: 1, event_type: "run_created", data: {}, recorded_at: "2026-11-22T05:00:00Z" },
+    { id: "e2", run_id: "run-1", sequence: 2, event_type: "task_claimed", task_run_id: "tr-1", data: { generation: 1 }, recorded_at: "2026-11-22T05:00:01Z" },
+    { id: "e3", run_id: "run-1", sequence: 3, event_type: "task_waiting_for_input", task_run_id: "tr-1", data: { reason: "Chờ duyệt" }, recorded_at: "2026-11-22T05:00:02Z" },
+    { id: "e4", run_id: "run-1", sequence: 4, event_type: "task_completed", task_run_id: "tr-1", data: { outcome: "succeeded", exit_code: 0 }, recorded_at: "2026-11-22T05:00:03Z" },
+    { id: "e5", run_id: "run-1", sequence: 5, event_type: "task_failed", task_run_id: "tr-1", data: { outcome: "failed", exit_code: 1 }, recorded_at: "2026-11-22T05:00:04Z" },
+    { id: "e6", run_id: "run-1", sequence: 6, event_type: "run_succeeded", data: {}, recorded_at: "2026-11-22T05:00:05Z" },
+    { id: "e7", run_id: "run-1", sequence: 7, event_type: "run_failed", data: { message: "One or more tasks failed" }, recorded_at: "2026-11-22T05:00:06Z" },
+    { id: "e8", run_id: "run-1", sequence: 8, event_type: "run_cancelled", data: {}, recorded_at: "2026-11-22T05:00:07Z" },
   ];
 
-  for (const ev of events) {
-    let level = "INFO";
-    if (ev.event_type === "task_completed") {
-      level = ev.outcome === "succeeded" ? "SUCCESS" : "ERROR";
-    } else if (ev.event_type === "run_succeeded") {
-      level = "SUCCESS";
-    } else if (ev.event_type === "run_failed") {
-      level = "ERROR";
-    } else if (ev.event_type === "task_waiting_for_input" || ev.event_type === "run_cancelled") {
-      level = "WARN";
-    }
-    assert.equal(level, ev.expected_level, `Event ${ev.event_type} (${ev.outcome}) should have level ${ev.expected_level}`);
-  }
+  const items = formatRunEventsToLogItems({ run: baseRun, events, process: proc, runners: [], skills: [] });
+  assert.deepEqual(
+    items.map((i) => i.level),
+    ["INFO", "INFO", "WARN", "SUCCESS", "ERROR", "SUCCESS", "ERROR", "WARN"],
+  );
+  assert.match(items[4].message, /\[local_output_missing\]: Runtime chưa tạo\/sửa file output/);
+  assert.match(items[4].details?.errorText ?? "", /\[local_output_missing\]/);
+  assert.match(items[6].message, /Tạo cốt truyện: \[local_output_missing\] Runtime chưa tạo\/sửa file output/);
 });

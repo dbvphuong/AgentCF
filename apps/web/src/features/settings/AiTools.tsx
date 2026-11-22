@@ -82,16 +82,33 @@ export function AiTools() {
     setIsSyncing(true);
     setSyncNotice(null);
     try {
-      const res = await request<{ added_count: number; added: string[]; total: number }>(
+      const res = await request<{
+        added_count: number;
+        added: string[];
+        updated_count?: number;
+        removed_count?: number;
+        disabled_count?: number;
+        total: number;
+      }>(
         "/v1/settings/ai-tool-models/sync",
         "POST"
       );
+      const changes: string[] = [];
+      if (res.added_count > 0) changes.push(`thêm ${res.added_count}`);
+      if ((res.updated_count ?? 0) > 0) changes.push(`cập nhật ${res.updated_count}`);
+      if ((res.removed_count ?? 0) > 0) changes.push(`gỡ ${res.removed_count} model cũ`);
+      if ((res.disabled_count ?? 0) > 0) changes.push(`tắt ${res.disabled_count} model cũ đang có lịch sử`);
       setSyncNotice(
-        res.added_count > 0
-          ? `Đã cập nhật ${res.added_count} model mới từ cache/danh mục chuẩn (Tổng: ${res.total} model).`
+        changes.length > 0
+          ? `Đã đồng bộ model thực tế trên máy (${changes.join(", ")}; Tổng: ${res.total} model).`
           : `Đã đồng bộ toàn bộ model mới nhất trên hệ thống (Tổng: ${res.total} model).`
       );
       reload();
+      request<{ codex: CheckResultItem; antigravity: CheckResultItem }>(
+        "/v1/settings/ai-tool-models/check"
+      )
+        .then(setCheckResult)
+        .catch(() => {});
     } catch (err: unknown) {
       setSyncNotice(`Lỗi đồng bộ model: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

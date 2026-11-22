@@ -79,7 +79,11 @@ def execute_local_skill(*, adapter, task, input_data, runner_id, log_dir, on_sta
         result = RuntimeExecutionResult(
             success=False, exit_code=result.exit_code, session_id=result.session_id,
             error_code="local_output_missing" if not changed else "skill_source_modified",
-            error_message="Runtime chưa tạo/sửa file output thực tế" if not changed else "Runtime đã thay đổi Skill nguồn",
+            error_message=(
+                f"Runtime chưa tạo/sửa file output thực tế trong {inventory_root}"
+                if not changed
+                else f"Runtime đã thay đổi Skill nguồn ({skill_path})"
+            ),
         )
     metadata = {
         "runner_id": runner_id, "working_directory": str(working),

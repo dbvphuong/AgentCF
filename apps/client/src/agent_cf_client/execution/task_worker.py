@@ -1,5 +1,7 @@
 """Client worker for polling work, claiming tasks, running adapters, and completing attempts (RUN-002, CLI-002)."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import os

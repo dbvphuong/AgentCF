@@ -154,6 +154,7 @@ export interface Field {
   immutable?: boolean;
   exclusiveValue?: string;
   advanced?: boolean;
+  hidden?: (values: RecordData) => boolean;
   getOptions?: (values: RecordData) => RecordData[];
   render?: (id: string, value: unknown, onChange: (value: string) => void, values: RecordData) => ReactNode;
 }
@@ -202,6 +203,7 @@ export function EntityForm({
         try {
           const payload: RecordData = {};
           for (const field of fields) {
+            if (field.hidden?.(values)) continue;
             const value = values[field.key];
             if (field.type === "password" && !value) continue;
             payload[field.key] =
@@ -374,11 +376,12 @@ export function EntityForm({
             </div>
           );
           };
+          const visibleFields = fields.filter(field => !field.hidden?.(values));
           return <>
-            {fields.filter(field => !field.advanced).map(renderField)}
-            {fields.some(field => field.advanced) && <details className="advanced-settings">
+            {visibleFields.filter(field => !field.advanced).map(renderField)}
+            {visibleFields.some(field => field.advanced) && <details className="advanced-settings">
               <summary>Cấu hình nâng cao</summary>
-              <div className="form-fields">{fields.filter(field => field.advanced).map(renderField)}</div>
+              <div className="form-fields">{visibleFields.filter(field => field.advanced).map(renderField)}</div>
             </details>}
           </>;
         })()}

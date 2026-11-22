@@ -281,6 +281,19 @@ export function RunDetail({ runId, onBack }: RunDetailProps) {
               <div className="detail-card card-error">
                 <h4>Chi tiết lỗi</h4>
                 <p className="error-text">{typeof run.error.message === "string" ? run.error.message : "Lần chạy gặp lỗi; mở chi tiết kỹ thuật để xem đầy đủ."}</p>
+                {run.task_runs.some((t) => t.error) && (
+                  <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>
+                    {run.task_runs.map((t, index) =>
+                      t.error ? (
+                        <li key={t.id}>
+                          <strong>{nodeName(t.task_id, index)}</strong>:{" "}
+                          {t.error.code ? <code>[{String(t.error.code)}] </code> : null}
+                          {String(t.error.message ?? "Thực thi thất bại")}
+                        </li>
+                      ) : null,
+                    )}
+                  </ul>
+                )}
                 <TechnicalDetails values={{ "Error JSON": run.error }} />
               </div>
             )}

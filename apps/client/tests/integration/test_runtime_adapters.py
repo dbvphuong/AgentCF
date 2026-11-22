@@ -257,6 +257,35 @@ def test_rtm006_antigravity_unsupported_model_fallback_rejection(tmp_path):
     assert "silent model substitution disallowed" in parsed.error_message
 
 
+def test_rtm006_antigravity_valid_model_override_log_succeeds_and_non_zero_extracts_cli_error(tmp_path):
+    """Normal `Propagating selected model override` log line must not falsely fail a valid model."""
+    adapter = AntigravityAdapter()
+
+    ok_log = tmp_path / "ok.log"
+    ok_log.write_text(
+        "I1122 11:59:11.215996 1 model_resolver.go:107] Resolving model gemini-4-hydrogen-high\n"
+        "I1122 11:59:11.216492 1 model_config_manager.go:375] Propagating selected model override to backend: "
+        'label="Gemini 4 Hydrogen (High)"\n',
+        encoding="utf-8",
+    )
+    ok_res = ProcessResult(exit_code=0, stdout="Outline generated", stderr="", duration_seconds=2.0)
+    parsed_ok = adapter.parse_output(ok_res, log_file=ok_log, requested_model="gemini-4-hydrogen-high")
+    assert parsed_ok.success is True
+    assert parsed_ok.output_text == "Outline generated"
+
+    err_log = tmp_path / "err.log"
+    err_log.write_text(
+        "E1122 11:59:10.019644 98 errorreport.go:285] error getting token source: You are not logged into Antigravity.\n"
+        "E1122 11:59:12.000000 99 backend.go:42] quota exhausted for model gemini-4-hydrogen-high\n",
+        encoding="utf-8",
+    )
+    err_res = ProcessResult(exit_code=1, stdout="", stderr="", duration_seconds=1.0)
+    parsed_err = adapter.parse_output(err_res, log_file=err_log, requested_model="gemini-4-hydrogen-high")
+    assert parsed_err.success is False
+    assert parsed_err.error_code == "non_zero_exit"
+    assert "quota exhausted" in (parsed_err.error_message or "")
+
+
 # =============================================================================
 # RTM-007: Review Search Capability
 # =============================================================================

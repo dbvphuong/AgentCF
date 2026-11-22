@@ -10,6 +10,7 @@ import type { RecordData } from "../../../shared/api";
 import { NewProjectSkill } from "../../skills";
 import { RunForm } from "../../runs";
 import { NodeForm } from "./NodeForm";
+import { resolveTaskModelInfo, shouldShowReasoningEffort } from "./modelLevel";
 import { TechnicalDetails } from "../../../shared/TechnicalDetails";
 
 export function ProcessEditor({
@@ -238,36 +239,7 @@ export function ProcessEditor({
     }
   };
   const selectedNode = graph.tasks.find((t: RecordData) => t.id === selected);
-  const resolveModelInfo = (task: RecordData) => {
-    if (task.kind === "robot") return null;
-    const toolModelId = task.runtime?.tool_model_id;
-    const modelId = task.runtime?.model_id;
-    const found = availableModels.find(
-      (m: RecordData) =>
-        (toolModelId && m.id === toolModelId) ||
-        (modelId && m.model_identifier === modelId),
-    );
-    const modelName = found?.name ?? modelId ?? "Model mặc định";
-    const effort = task.runtime?.reasoning_effort;
-    const effortMap: Record<string, string> = {
-      low: "Low",
-      medium: "Mid",
-      high: "High",
-      xhigh: "Extra High",
-      max: "Max",
-    };
-    const levelLabel =
-      effort && effort !== "default"
-        ? effortMap[effort] || effort
-        : "Mặc định";
-    const adapter = task.runtime?.adapter ?? found?.tool_id ?? "codex";
-    return {
-      modelName,
-      levelLabel,
-      adapter,
-      effortRaw: effort || "default",
-    };
-  };
+  const resolveModelInfo = (task: RecordData) => resolveTaskModelInfo(task, availableModels);
   const startPos = graph.layout?.["__start__"] ?? { x: 30, y: 118 };
   const buildPathD = (x1: number, y1: number, x2: number, y2: number) => {
     if (Math.abs(y1 - y2) < 2) {
@@ -953,9 +925,11 @@ export function ProcessEditor({
                                 <span className="node-meta-icon">🤖</span>
                                 <span className="node-meta-text">
                                   <span className="node-model-name">{mi.modelName}</span>
-                                  <span className={`node-level-pill node-level-${mi.effortRaw}`}>
-                                    {mi.levelLabel}
-                                  </span>
+                                  {mi.showCardPill && (
+                                    <span className={`node-level-pill node-level-${mi.effortRaw}`}>
+                                      {mi.levelLabel}
+                                    </span>
+                                  )}
                                 </span>
                               </div>
                             );
@@ -1121,7 +1095,7 @@ export function ProcessEditor({
                                   className={`node-level-pill node-level-${mi?.effortRaw ?? "default"}`}
                                   style={{ marginLeft: 0, padding: "2px 8px", fontSize: "11px" }}
                                 >
-                                  {mi?.levelLabel ?? "Mặc định"}
+                                  {mi?.inspectorLevelLabel ?? "Mặc định"}
                                 </span>
                               </dd>
                             </div>
@@ -1242,7 +1216,9 @@ export function ProcessEditor({
                         adapter: data.adapter,
                         model_id: model?.model_identifier,
                         tool_model_id: model?.id,
-                        ...(data.node_reasoning_effort && data.node_reasoning_effort !== "default"
+                        ...(shouldShowReasoningEffort(data.adapter, model) &&
+                        data.node_reasoning_effort &&
+                        data.node_reasoning_effort !== "default"
                           ? { reasoning_effort: data.node_reasoning_effort } : {}),
                       },
                     }

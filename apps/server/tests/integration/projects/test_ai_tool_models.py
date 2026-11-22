@@ -53,7 +53,13 @@ def test_disabled_cli_model_blocks_new_runs_but_keeps_published_history(client):
     assert client.get(f"/v1/processes/{process['id']}").json()["versions"][0] == snapshot
 
 
-def test_sync_and_check_endpoints(client):
+def test_sync_and_check_endpoints(client, monkeypatch, tmp_path):
+    from agent_cf_server.infrastructure.settings.ai_tool_models import AiToolModelRepository
+
+    # Test deterministic fallback when local tools/cache are absent
+    monkeypatch.setattr(AiToolModelRepository, "_discover_codex_models", lambda self: [])
+    monkeypatch.setattr(AiToolModelRepository, "_discover_antigravity_models", lambda self: [])
+
     check = client.get("/v1/settings/ai-tool-models/check")
     assert check.status_code == 200
     res = check.json()
@@ -67,14 +73,91 @@ def test_sync_and_check_endpoints(client):
     assert "added_count" in sync_res
     assert "total" in sync_res
     assert sync_res["total"] >= 15
+    assert sync_res["sources"] == {"codex": "default", "antigravity": "default"}
 
     models = client.get("/v1/settings/ai-tool-models").json()
     identifiers = {m["model_identifier"] for m in models}
     assert "gpt-5.6-sol" in identifiers
-    assert "gpt-5.6-terra" in identifiers
-    assert "claude-sonnet-4.6-thinking" in identifiers
-    assert "claude-opus-4.6-thinking" in identifiers
+    assert "gpt-6.2-sol" in identifiers
+    assert "claude-sonnet-5-5-high" in identifiers
+    assert "claude-opus-5-5-high" in identifiers
     assert "gemini-3.8-flash-high" in identifiers
+
+
+def test_sync_live_discovery_prunes_stale_and_preserves_referenced(client, monkeypatch, tmp_path):
+    import json
+    from pathlib import Path
+    from agent_cf_server.infrastructure.settings import ai_tool_models as mod
+
+    # Prepare a fake ~/.codex/models_cache.json with one visible model and one hidden model
+    codex_dir = tmp_path / ".codex"
+    codex_dir.mkdir(parents=True)
+    (codex_dir / "models_cache.json").write_text(
+        json.dumps({
+            "models": [
+                {"slug": "gpt-6.2-sol", "display_name": "GPT-6.2-Sol", "visibility": "list"},
+                {"slug": "codex-auto-review", "display_name": "Codex Auto Review", "visibility": "hide"},
+            ]
+        }),
+        encoding="utf-8",
+    )
+    # Prepare fake agy.exe under ~/.gemini/bin/agy.exe
+    agy_bin = tmp_path / ".gemini" / "bin" / "agy.exe"
+    agy_bin.parent.mkdir(parents=True)
+    agy_bin.write_bytes(b"fake")
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(mod.shutil, "which", lambda name: None)
+
+    class FakeProc:
+        def __init__(self, returncode, stdout):
+            self.returncode = returncode
+            self.stdout = stdout
+
+    def fake_run(cmd, **kwargs):
+        if cmd[1:] == ["models"]:
+            return FakeProc(
+                0,
+                "Fetching available models...\n"
+                "gemini-4-neon-high\tGemini 4 Neon (High)\n"
+                "claude-opus-5-5-high\tClaude Opus 5.5 (High)\n",
+            )
+        if cmd[1:] == ["--version"]:
+            return FakeProc(0, "1.5.12\n")
+        return FakeProc(1, "")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    # Create a process version referencing the seeded `cli-agy-sonnet` so it must be disabled, not deleted
+    _, process = setup_project(client)
+    graph = definition()
+    graph["tasks"][0]["runtime"] = {
+        "adapter": "antigravity",
+        "model_id": "claude-sonnet-4.6-thinking",
+        "tool_model_id": "cli-agy-sonnet",
+    }
+    vpath = f"/v1/processes/{process['id']}/versions/{process['versions'][0]['id']}"
+    client.put(vpath, json={"definition": graph, "revision": 1}).raise_for_status()
+
+    sync_res = client.post("/v1/settings/ai-tool-models/sync").json()
+    assert sync_res["sources"] == {"codex": "local_cache", "antigravity": "cli"}
+    assert sync_res["removed_count"] >= 1
+    assert sync_res["disabled_count"] == 1
+
+    all_models = client.get("/v1/settings/ai-tool-models").json()
+    codex_active = [m["model_identifier"] for m in all_models if m["tool_id"] == "codex" and m["status"] == "active"]
+    agy_active = [m["model_identifier"] for m in all_models if m["tool_id"] == "antigravity" and m["status"] == "active"]
+    assert codex_active == ["gpt-6.2-sol"]
+    assert "codex-auto-review" not in {m["model_identifier"] for m in all_models}
+    assert set(agy_active) == {"gemini-4-neon-high", "claude-opus-5-5-high"}
+
+    referenced = client.get("/v1/settings/ai-tool-models/cli-agy-sonnet").json()
+    assert referenced["status"] == "disabled"
+
+    check_res = client.get("/v1/settings/ai-tool-models/check").json()
+    assert check_res["antigravity"]["installed"] is True
+    assert check_res["antigravity"]["version"] == "1.5.12"
+    assert check_res["antigravity"]["executable"] == str(agy_bin)
 
 
 def test_configure_tool_models_batch_toggles_active_status(client):

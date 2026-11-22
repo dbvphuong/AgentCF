@@ -489,3 +489,56 @@ def test_run006_end_to_end_skill0_execution(test_env, tmp_path, monkeypatch):
     assert "task_claimed" in event_types
     assert "task_completed" in event_types
     assert "run_succeeded" in event_types
+
+
+def test_task_failure_details_propagate_to_run_events_and_run_error(test_env):
+    client = test_env["client"]
+    runner = pair_and_start_runner(test_env)
+    run_resp = client.post(
+        "/v1/runs",
+        json={"process_version_id": "ver-story-v1", "input": {"topic": "Einstein"}},
+        headers={"Idempotency-Key": "run-fail-detail"},
+    )
+    assert run_resp.status_code == 202
+    run_data = run_resp.json()
+    run_id = run_data["id"]
+    outline_task_run_id = next(t["id"] for t in run_data["task_runs"] if t["task_id"] == "task-outline")
+
+    claim_resp = client.post(
+        f"/v1/task-runs/{outline_task_run_id}/claim",
+        json={"session_id": runner["session_id"], "lease_seconds": 60},
+        headers={
+            "Authorization": f"Bearer {runner['runner_token']}",
+            "Idempotency-Key": "claim-fail-detail",
+        },
+    )
+    assert claim_resp.status_code == 201
+    claimed = claim_resp.json()
+
+    complete_resp = client.post(
+        f"/v1/attempts/{claimed['attempt_id']}/complete",
+        json={
+            "outcome": "failed",
+            "process_stopped": True,
+            "exit_code": 1,
+            "error": {"code": "quota_exceeded", "message": "Model quota exhausted for sk-secret-12345678901234567890"},
+        },
+        headers={
+            "X-Execution-Token": claimed["execution_token"],
+            "Idempotency-Key": "fail-detail-1",
+        },
+    )
+    assert complete_resp.status_code == 200
+
+    detail = client.get(f"/v1/runs/{run_id}").json()
+    assert detail["status"] == "failed"
+    assert "quota_exceeded" in detail["error"]["message"]
+    assert "sk-secret-12345678901234567890" not in detail["error"]["message"]
+
+    events = client.get(f"/v1/runs/{run_id}/events").json()["items"]
+    task_failed = next(ev for ev in events if ev["event_type"] == "task_failed")
+    assert task_failed["data"]["error"]["code"] == "quota_exceeded"
+    assert "sk-secret-12345678901234567890" not in task_failed["data"]["error"]["message"]
+    run_failed = next(ev for ev in events if ev["event_type"] == "run_failed")
+    assert "quota_exceeded" in run_failed["data"]["message"]
+    assert run_failed["data"]["failed_tasks"][0]["code"] == "quota_exceeded"

@@ -38,30 +38,41 @@ def main(argv=None):
     folder.mkdir(parents=True, exist_ok=True)
     os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "") + ",127.0.0.1,localhost,::1"
     logging.basicConfig(filename=str(folder / "client.log"), level=logging.WARNING, encoding="utf-8")
-    import tkinter as tk
-    import customtkinter as ctk
-    root = ctk.CTk()
-    if args.self_check:
-        from agent_cf_client.connection.credentials import protect
-        from agent_cf_client.runtime.codex_adapter import CodexAdapter
-        from agent_cf_client.runtime.antigravity_adapter import AntigravityAdapter
-        assert protect(protect(b"test"), decrypt=True) == b"test"
-        Path(args.self_check).write_text(json.dumps({"status": "ok", "tk": tk.TkVersion, "packaged": bool(os.environ.get("AGENT_CF_CLIENT_EXE")), "codex": CodexAdapter().is_available(), "antigravity": AntigravityAdapter().is_available()}), encoding="utf-8")
-        root.destroy()
-        return 0
-    from agent_cf_client.desktop.app import ClientWindow
-    instance = SingleInstance(folder)
-    if not instance.owner:
-        instance.notify(args.connect)
-        instance.close()
-        root.destroy()
-        return 0
     try:
-        ClientWindow(root, folder, args.connect, args.background)
-        root.mainloop()
-    finally:
-        instance.close()
-    return 0
+        import tkinter as tk
+        from tkinter import messagebox
+        import customtkinter as ctk
+        root = ctk.CTk()
+        if args.self_check:
+            from agent_cf_client.connection.credentials import protect
+            from agent_cf_client.runtime.codex_adapter import CodexAdapter
+            from agent_cf_client.runtime.antigravity_adapter import AntigravityAdapter
+            assert protect(protect(b"test"), decrypt=True) == b"test"
+            Path(args.self_check).write_text(json.dumps({"status": "ok", "tk": tk.TkVersion, "packaged": bool(os.environ.get("AGENT_CF_CLIENT_EXE")), "codex": CodexAdapter().is_available(), "antigravity": AntigravityAdapter().is_available()}), encoding="utf-8")
+            root.destroy()
+            return 0
+        from agent_cf_client.desktop.app import ClientWindow
+        instance = SingleInstance(folder)
+        if not instance.owner:
+            instance.notify(args.connect)
+            instance.close()
+            root.destroy()
+            return 0
+        try:
+            ClientWindow(root, folder, args.connect, args.background)
+            root.mainloop()
+        finally:
+            instance.close()
+        return 0
+    except Exception as exc:
+        logging.exception("CF Client startup failed")
+        if not args.self_check:
+            try:
+                from tkinter import messagebox
+                messagebox.showerror("CF Client", f"Không khởi động được CF Client:\n{exc}\n\nXem log tại: {folder / 'client.log'}")
+            except Exception:
+                pass
+        raise
 
 
 if __name__ == "__main__":

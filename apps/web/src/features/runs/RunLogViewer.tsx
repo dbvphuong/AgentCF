@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import type { RecordData } from "../../shared/api";
 import type { Run, RunEvent } from "./types";
+import { formatRunEventsToLogItems, type LogItem, type LogLevel } from "./formatRunLog";
+
+export type { LogItem, LogLevel };
 
 interface RunLogViewerProps {
   run: Run;
@@ -10,27 +13,6 @@ interface RunLogViewerProps {
   skills: RecordData[];
 }
 
-export type LogLevel = "ALL" | "INFO" | "SUCCESS" | "WARN" | "ERROR";
-
-export interface LogItem {
-  id: string;
-  seq: number;
-  timeStr: string;
-  dateStr: string;
-  level: "INFO" | "SUCCESS" | "WARN" | "ERROR";
-  nodeName: string;
-  skillName: string;
-  message: string;
-  details?: {
-    files?: Array<{ path: string; size_bytes?: number }>;
-    workingDir?: string;
-    summary?: string;
-    errorText?: string;
-    runnerName?: string;
-    rawData?: Record<string, unknown>;
-  };
-}
-
 export function RunLogViewer({ run, events, process, runners, skills }: RunLogViewerProps) {
   const [levelFilter, setLevelFilter] = useState<LogLevel>("ALL");
   const [nodeFilter, setNodeFilter] = useState<string>("ALL");
@@ -38,196 +20,10 @@ export function RunLogViewer({ run, events, process, runners, skills }: RunLogVi
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<boolean>(false);
 
-  const version = process?.versions?.find((v: RecordData) => v.id === run.process_version_id);
-  const tasksDef = (version?.definition?.tasks as RecordData[]) || [];
-
-  const resolveNodeName = (taskId?: string | null, taskRunId?: string | null): string => {
-    if (!taskId && taskRunId) {
-      const tr = run.task_runs.find((t) => t.id === taskRunId);
-      if (tr) taskId = tr.task_id;
-    }
-    if (taskId) {
-      const def = tasksDef.find((t) => t.id === taskId);
-      if (def?.name) return String(def.name);
-      const idx = run.task_runs.findIndex((t) => t.task_id === taskId);
-      if (idx >= 0) return `Bước ${idx + 1}`;
-    }
-    return "Toàn bộ Process";
-  };
-
-  const resolveSkillName = (taskId?: string | null, taskRunId?: string | null): string => {
-    let tr = taskRunId ? run.task_runs.find((t) => t.id === taskRunId) : undefined;
-    if (!tr && taskId) {
-      tr = run.task_runs.find((t) => t.task_id === taskId);
-    }
-    if (tr?.output?.skill_source_path) {
-      const parts = String(tr.output.skill_source_path).split(/[\\/]/);
-      return parts[parts.length - 1] || "Skill";
-    }
-    if (taskId) {
-      const def = tasksDef.find((t) => t.id === taskId);
-      if (def?.skill_id) {
-        const skl = skills.find((s) => s.id === def.skill_id);
-        if (skl?.name) return String(skl.name);
-      }
-    }
-    return "—";
-  };
-
-  const resolveRunnerName = (runnerId?: string | null): string => {
-    if (!runnerId) return "PC Runner";
-    const found = runners.find((r) => r.id === runnerId);
-    return found?.name ? String(found.name) : runnerId;
-  };
-
-  const logItems: LogItem[] = useMemo(() => {
-    const topic = (run.input?.topic as string) || (run.input?.prompt as string) || "";
-    const items: LogItem[] = [];
-
-    // Sort events by sequence
-    const sorted = [...events].sort((a, b) => a.sequence - b.sequence);
-
-    for (const ev of sorted) {
-      const tr = ev.task_run_id ? run.task_runs.find((t) => t.id === ev.task_run_id) : undefined;
-      const taskId = tr?.task_id;
-      const nodeName = resolveNodeName(taskId, ev.task_run_id);
-      const skillName = resolveSkillName(taskId, ev.task_run_id);
-      const date = new Date(ev.recorded_at);
-      const timeStr = date.toLocaleTimeString("vi-VN");
-      const dateStr = date.toLocaleDateString("vi-VN");
-
-      let level: "INFO" | "SUCCESS" | "WARN" | "ERROR" = "INFO";
-      let message = "";
-      const details: LogItem["details"] = {
-        rawData: ev.data,
-      };
-
-      const eventRunnerId = (ev.data?.runner_id as string) || (tr?.output?.runner_id as string);
-      if (eventRunnerId) {
-        details.runnerName = resolveRunnerName(eventRunnerId);
-      }
-
-      switch (ev.event_type) {
-        case "run_created": {
-          level = "INFO";
-          const procName = process?.name || run.process_name || "Process";
-          message = `Khởi tạo lượt chạy Process "${procName}"${topic ? ` · Chủ đề: "${topic}"` : ""}`;
-          break;
-        }
-
-        case "task_claimed": {
-          level = "INFO";
-          const gen = ev.data?.generation ?? tr?.generation ?? 1;
-          const rName = details.runnerName || "PC Runner";
-          message = `PC "${rName}" đã nhận nhiệm vụ thực thi (Lần thử ${gen})`;
-          break;
-        }
-
-        case "task_waiting_for_input": {
-          level = "WARN";
-          const reason = (ev.data?.reason as string) || "Đang chờ người dùng kiểm duyệt hoặc xác nhận";
-          message = `Tạm dừng bước thực thi — ${reason}`;
-          break;
-        }
-
-        case "run_continued": {
-          level = "INFO";
-          const decision = (ev.data?.decision as string) || "tiếp tục";
-          const feedback = ev.data?.feedback as string | undefined;
-          message = `Xác nhận tiếp tục lượt chạy (Quyết định: ${decision}${feedback ? ` · Phản hồi: ${feedback}` : ""})`;
-          break;
-        }
-
-        case "task_completed": {
-          const outcome = ev.data?.outcome as string | undefined;
-          const exitCode = typeof ev.data?.exit_code === "number" ? ev.data.exit_code : 0;
-          const isSuccess = outcome === "succeeded";
-
-          if (isSuccess) {
-            level = "SUCCESS";
-            const localFiles = (tr?.output?.local_files as Array<{ path: string; size_bytes?: number }>) || [];
-            details.files = localFiles;
-            details.workingDir = tr?.output?.working_directory as string | undefined;
-            if (tr?.output?.summary && typeof tr.output.summary === "string") {
-              details.summary = tr.output.summary;
-            }
-
-            if (localFiles.length > 0) {
-              message = `Hoàn thành thực thi (Exit code: 0) — Đã tạo/cập nhật ${localFiles.length} file tại PC`;
-            } else if (details.summary) {
-              const preview = details.summary.trim().split("\n")[0]?.slice(0, 100) || "Thành công";
-              message = `Hoàn thành thực thi (Exit code: 0) — ${preview}`;
-            } else {
-              message = "Hoàn thành thực thi bước này thành công (Exit code: 0)";
-            }
-          } else {
-            level = "ERROR";
-            const errCode = (tr?.error?.code as string) || (ev.data?.error_code as string) || "E_FAILED";
-            const errMsg = (tr?.error?.message as string) || (ev.data?.message as string) || "Thực thi thất bại";
-            details.errorText = `[${errCode}] ${errMsg}`;
-            message = `Thực thi thất bại (Exit code: ${exitCode}): ${errMsg}`;
-          }
-          break;
-        }
-
-        case "run_succeeded": {
-          level = "SUCCESS";
-          message = "Lượt chạy hoàn thành thành công tất cả các bước!";
-          break;
-        }
-
-        case "run_failed": {
-          level = "ERROR";
-          const errMsg = (run.error?.message as string) || (ev.data?.message as string) || "Quy trình dừng do lỗi";
-          details.errorText = errMsg;
-          message = `Lượt chạy thất bại: ${errMsg}`;
-          break;
-        }
-
-        case "run_cancelled": {
-          level = "WARN";
-          const reason = (ev.data?.reason as string) || "Người dùng hủy lượt chạy";
-          message = `Lượt chạy đã bị hủy: ${reason}`;
-          break;
-        }
-
-        case "attempt_observation": {
-          level = "INFO";
-          const obsType = (ev.data?.observation_type as string) || "Tiến trình";
-          message = `Ghi nhận quan sát: ${obsType}`;
-          break;
-        }
-
-        case "state_changed": {
-          level = "INFO";
-          const st = (ev.data?.status as string) || "đối soát";
-          const re = ev.data?.reason ? ` (${ev.data.reason})` : "";
-          message = `Trạng thái hệ thống chuyển sang "${st}"${re}`;
-          break;
-        }
-
-        default: {
-          level = "INFO";
-          message = `Sự kiện hệ thống: ${ev.event_type}`;
-          break;
-        }
-      }
-
-      items.push({
-        id: ev.id,
-        seq: ev.sequence,
-        timeStr,
-        dateStr,
-        level,
-        nodeName,
-        skillName,
-        message,
-        details,
-      });
-    }
-
-    return items;
-  }, [events, run, process, runners, skills]);
+  const logItems: LogItem[] = useMemo(
+    () => formatRunEventsToLogItems({ run, events, process, runners, skills }),
+    [events, run, process, runners, skills],
+  );
 
   const uniqueNodes = useMemo(() => {
     const set = new Set<string>();
@@ -271,9 +67,10 @@ export function RunLogViewer({ run, events, process, runners, skills }: RunLogVi
   };
 
   const handleCopyLogs = () => {
-    const lines = filteredLogs.map((l) =>
-      `[${l.timeStr}] [${l.level.padEnd(7)}] [Node: ${l.nodeName}] [Skill: ${l.skillName}] ${l.message}`
-    );
+    const lines = filteredLogs.map((l) => {
+      const base = `[${l.timeStr}] [${l.level.padEnd(7)}] [Node: ${l.nodeName}] [Skill: ${l.skillName}] ${l.message}`;
+      return l.details?.errorText ? `${base}\n  -> ${l.details.errorText}` : base;
+    });
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

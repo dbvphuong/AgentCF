@@ -17,6 +17,57 @@ def encode_json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
 
+def _build_run_failure_error(connection: Any, run_id: str, all_tasks: list[Any]) -> dict[str, Any]:
+    """Summarize concrete task failure code/message for run-level failure records."""
+    task_names: dict[str, str] = {}
+    pv_row = connection.execute(
+        "SELECT pv.definition_json FROM process_runs pr "
+        "JOIN process_versions pv ON pv.id = pr.process_version_id WHERE pr.id=?",
+        (run_id,),
+    ).fetchone()
+    if pv_row and pv_row["definition_json"]:
+        try:
+            for tdef in json.loads(pv_row["definition_json"]).get("tasks", []):
+                if isinstance(tdef, dict) and tdef.get("id"):
+                    task_names[tdef["id"]] = tdef.get("name") or tdef["id"]
+        except Exception:
+            pass
+
+    failed_details: list[dict[str, Any]] = []
+    for task in all_tasks:
+        if task["status"] not in ("failed", "cancelled"):
+            continue
+        code = None
+        msg = ""
+        if task["error_json"]:
+            try:
+                parsed = json.loads(task["error_json"])
+                if isinstance(parsed, dict):
+                    code = parsed.get("code")
+                    msg = str(parsed.get("message") or "").strip()
+            except Exception:
+                msg = str(task["error_json"]).strip()
+        failed_details.append({
+            "task_id": task["task_id"],
+            "task_name": task_names.get(task["task_id"], task["task_id"]),
+            "code": code,
+            "message": msg or f"Trạng thái {task['status']}",
+        })
+
+    if not failed_details:
+        return {"message": "One or more tasks failed"}
+
+    first = failed_details[0]
+    code_prefix = f"[{first['code']}] " if first.get("code") else ""
+    summary = f'Bước "{first["task_name"]}" thất bại: {code_prefix}{first["message"]}'
+    if len(failed_details) > 1:
+        summary += f" (+{len(failed_details) - 1} bước khác)"
+    payload: dict[str, Any] = {"message": summary, "failed_tasks": failed_details}
+    if first.get("code"):
+        payload["code"] = first["code"]
+    return redact_secrets(payload)
+
+
 class IdempotencyConflict(ValueError):
     pass
 
@@ -661,17 +712,31 @@ class RunRepository:
 
             seq = connection.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (grant["run_id"],)).fetchone()[0]
             event_type = "task_completed" if outcome == "succeeded" else "task_failed"
+            event_data: dict[str, Any] = {
+                "exit_code": exit_code,
+                "outcome": outcome,
+                "artifacts": artifact_ids or [],
+            }
+            audit_data: dict[str, Any] = {
+                "attempt_id": attempt_id,
+                "exit_code": exit_code,
+                "outcome": outcome,
+            }
+            if outcome != "succeeded" and error is not None:
+                redacted_error = redact_secrets(error)
+                event_data["error"] = redacted_error
+                audit_data["error"] = redacted_error
             connection.execute(
                 "INSERT INTO run_events(id,run_id,sequence,event_type,task_run_id,attempt_id,data_json,recorded_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
                 (str(uuid4()), grant["run_id"], seq, event_type, grant["task_run_id"], attempt_id,
-                 encode_json({"exit_code": exit_code, "outcome": outcome, "artifacts": artifact_ids or []}), at),
+                 encode_json(event_data), at),
             )
             connection.execute(
                 "INSERT INTO audit_events(id,run_id,actor_id,event_type,resource_id,data_json,recorded_at) "
                 "VALUES (?,?,?,?,?,?,?)",
                 (str(uuid4()), grant["run_id"], grant["runner_id"], event_type, grant["task_run_id"],
-                 encode_json(redact_secrets({"attempt_id": attempt_id, "exit_code": exit_code, "outcome": outcome})), at),
+                 encode_json(redact_secrets(audit_data)), at),
             )
 
             if outcome == "succeeded":
@@ -733,7 +798,7 @@ class RunRepository:
                         (str(uuid4()), grant["run_id"], grant["run_id"], at),
                     )
                 else:
-                    err_msg = {"message": "One or more tasks failed"}
+                    err_msg = _build_run_failure_error(connection, grant["run_id"], all_tasks)
                     connection.execute(
                         "UPDATE process_runs SET status='failed', ended_at=?, error_json=?, revision=revision+1 WHERE id=?",
                         (at, encode_json(err_msg), grant["run_id"]),

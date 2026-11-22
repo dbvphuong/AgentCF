@@ -1,5 +1,6 @@
 import { EntityForm } from "../../../shared/ui";
 import type { RecordData } from "../../../shared/api";
+import { EFFORT_OPTION_LABELS, shouldShowReasoningEffort } from "./modelLevel";
 
 export function NodeForm({ node, kind, agents, models, skills, runners, robotVersions, onCancel, onSave }: {
   node: RecordData; kind: string; agents: RecordData[]; models: RecordData[]; skills: RecordData[];
@@ -7,9 +8,14 @@ export function NodeForm({ node, kind, agents, models, skills, runners, robotVer
   onSave: (data: RecordData) => Promise<void>;
 }) {
   const availableModels = (adapter: string) => models.filter(m => m.tool_id === adapter && m.status === "active");
+  const findModel = (adapter: string, id?: string) => availableModels(adapter).find(m => m.id === id);
   const adapter = node.runtime?.adapter ?? "codex";
   const modelId = node.runtime?.tool_model_id ?? availableModels(adapter).find(m => m.model_identifier === node.runtime?.model_id)?.id;
-  return <EntityForm initial={{ ...node, adapter, node_model_id: modelId ?? "", node_reasoning_effort: node.runtime?.reasoning_effort ?? "default" }}
+  const initialModel = findModel(adapter, modelId);
+  const initialEffort = shouldShowReasoningEffort(adapter, initialModel)
+    ? (node.runtime?.reasoning_effort ?? "default")
+    : "default";
+  return <EntityForm initial={{ ...node, adapter, node_model_id: modelId ?? "", node_reasoning_effort: initialEffort }}
     onValuesChange={(next, previous) => {
       if (kind !== "agent") return next;
       if (next.adapter !== previous.adapter) {
@@ -35,13 +41,14 @@ export function NodeForm({ node, kind, agents, models, skills, runners, robotVer
         { key: "node_model_id", label: "Model thực thi", type: "select" as const, required: true,
           getOptions: (values: RecordData) => availableModels(values.adapter).map(m => ({ ...m,
             name: `${m.name} · ${m.model_identifier}` })),
-          hint: "Chỉ hiện model đã bật của công cụ đã chọn. Thêm/sửa tại Settings → Công cụ AI trên PC; tách riêng model API của Agent điều phối." },
+          hint: "Chỉ hiện model đã bật của công cụ đã chọn (nhiều model Antigravity đã gắn sẵn mức suy luận). Thêm/sửa tại Settings → Công cụ AI trên PC." },
         { key: "node_reasoning_effort", label: "Mức suy luận (Level)", type: "select" as const,
+          hidden: (values: RecordData) => !shouldShowReasoningEffort(values.adapter, findModel(values.adapter, values.node_model_id)),
           getOptions: (values: RecordData) => [
             { id: "default", name: "Mặc định của CLI" },
             ...["low", "medium", "high", ...(values.adapter === "codex" ? ["xhigh", "max"] : [])]
-              .map(id => ({ id, name: ({ low: "Low (Thấp)", medium: "Mid (Vừa)", high: "High (Cao)", xhigh: "Extra High (Rất cao)", max: "Max (Tối đa)" } as Record<string, string>)[id] })),
-          ], hint: "Áp dụng riêng cho bước này. Mức cao hơn thường cần nhiều thời gian hơn; khả năng hỗ trợ phụ thuộc model." },
+              .map(id => ({ id, name: EFFORT_OPTION_LABELS[id] ?? id })),
+          ], hint: "Áp dụng riêng cho bước này khi model chưa gắn sẵn mức suy luận. Mức cao hơn thường cần nhiều thời gian hơn." },
         { key: "instructions", label: "Nhiệm vụ bổ sung (không bắt buộc)", type: "textarea" as const,
           hint: "Mặc định chạy Skill đã chọn cho chủ đề của lần chạy. Chỉ nhập yêu cầu riêng cho bước này; không cần chép lại Skill hoặc nhập lại chủ đề." },
         { key: "runner_id", label: "PC thực thi", type: "select" as const, options: runners,
